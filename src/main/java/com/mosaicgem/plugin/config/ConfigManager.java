@@ -118,4 +118,8 @@ public class ConfigManager {
     public SocketLoreTemplate socketLore() {
         return SocketLoreTemplate.from(config.getConfigurationSection("socket-lore"));
     }
+
+    public AttributeLoreConfig attributeLore() {
+        return AttributeLoreConfig.from(config.getConfigurationSection("attribute-lore"));
+    }
 }

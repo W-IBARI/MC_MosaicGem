@@ -30,11 +30,13 @@ public class GemService {
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
     private final ItemFactory factory;
+    private final AttributeLoreService attributeLoreService;
 
     public GemService(MosaicGemPlugin plugin, ConfigManager configs, ItemFactory factory) {
         this.plugin = plugin;
         this.configs = configs;
         this.factory = factory;
+        this.attributeLoreService = new AttributeLoreService(configs, factory);
     }
 
     public record Combo(ToolType toolType, ItemDefinition definition, ItemStack tool, ItemStack target) {
@@ -85,8 +87,13 @@ public class GemService {
                 }
                 Map<String, String> values = factory.readValues(combo.tool());
                 List<String> lines = resolveLines(definition, values);
+                SocketedGem socketedGem = new SocketedGem(definition.getId(), ItemFactory.newInstanceId(), values, lines);
+                List<SocketedGem> gems = new ArrayList<>(data.gems());
+                gems.add(socketedGem);
                 ItemStack preview = combo.target().clone();
-                factory.appendLore(preview, lines);
+                factory.writeSocketData(preview, data.holes(), data.holeSources(), gems);
+                attributeLoreService.update(preview, gems);
+                factory.applySocketLore(preview, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
                 yield preview;
             }
             case REMOVER -> {
@@ -95,8 +102,12 @@ public class GemService {
                     yield combo.target().clone();
                 }
                 SocketedGem last = data.gems().get(data.gems().size() - 1);
+                List<SocketedGem> gems = new ArrayList<>(data.gems());
+                gems.remove(gems.size() - 1);
                 ItemStack preview = combo.target().clone();
-                factory.removeLoreLines(preview, last.lines());
+                factory.writeSocketData(preview, data.holes(), data.holeSources(), gems);
+                attributeLoreService.update(preview, gems);
+                factory.applySocketLore(preview, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
                 yield preview;
             }
         };
@@ -173,7 +184,7 @@ public class GemService {
 
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
-        factory.appendLore(result, lines);
+        attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
         return new OperationResult(result, null, true, configs.message("socket-success"));
     }
@@ -202,6 +213,7 @@ public class GemService {
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.removeLoreLines(result, removed.lines());
+        attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
 
         ItemStack returnedGem = buildReturnedGem(removed);

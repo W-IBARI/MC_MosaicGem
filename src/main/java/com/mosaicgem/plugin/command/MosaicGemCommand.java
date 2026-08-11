@@ -10,6 +10,7 @@ import com.mosaicgem.plugin.config.SocketLoreTemplate;
 import com.mosaicgem.plugin.model.SocketData;
 import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
+import com.mosaicgem.plugin.service.AttributeLoreService;
 import com.mosaicgem.plugin.util.ItemFactory;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import org.bukkit.Bukkit;
@@ -312,6 +313,38 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         } catch (Exception e) {
             fail++;
             lines.add("&c镶嵌数据读写失败: " + e.getMessage());
+        }
+
+        try {
+            ItemStack sword = new ItemStack(Material.IRON_SWORD);
+            sword.editMeta(meta -> meta.setLore(List.of("\u00A7r<#FFAA00>攻击力：<#FF5555>13.90")));
+            Map<String, String> gemValues = new LinkedHashMap<>();
+            gemValues.put("random_value", "20.00");
+            SocketedGem gem = new SocketedGem("测试宝石", "test-uuid-merge", gemValues, List.of());
+            Map<String, Integer> sources = new LinkedHashMap<>();
+            sources.put("测试打孔器", 1);
+            factory.writeSocketData(sword, 1, sources, List.of(gem));
+
+            AttributeLoreService attributeLoreService = new AttributeLoreService(configs, factory);
+            attributeLoreService.update(sword, List.of(gem));
+            String mergedLine = sword.getItemMeta().getLore().get(0);
+            boolean hasMarker = mergedLine.contains(AttributeLoreService.MARKER);
+            boolean hasSectionX = mergedLine.contains("\u00A7X");
+            boolean hasZw = mergedLine.contains("\u200B");
+            if (!mergedLine.contains("33.90") || !mergedLine.contains("（+20") || !hasMarker) {
+                throw new IllegalStateException("属性合并失败: marker=" + hasMarker + " sectionX=" + hasSectionX
+                        + " zw=" + hasZw + " line=" + mergedLine.replace("\u00A7", "\\u00A7").replace("\u200B", "\\u200B"));
+            }
+            // 再次更新（模拟拆卸重算）应还原后重新合并，结果稳定
+            attributeLoreService.update(sword, List.of(gem));
+            String mergedLine2 = sword.getItemMeta().getLore().get(0);
+            if (!mergedLine2.contains("33.90") || !mergedLine2.contains("（+20")) {
+                throw new IllegalStateException("属性重复合并异常: " + mergedLine2);
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add("&c属性面板合并失败: " + e.getMessage());
         }
 
         sender.sendMessage(ItemFactory.colorize("&7===== MosaicGem Selftest ====="));

@@ -11,6 +11,8 @@ import com.mosaicgem.plugin.model.SocketData;
 import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
 import io.papermc.paper.persistence.PersistentDataContainerView;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
@@ -24,11 +26,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * 物品工厂：生成工具物品、读写物品组件（custom data）中的镶嵌数据。
  */
 public class ItemFactory {
+
+    /** 属性合并行标记：SX 解析 §X 之前的内容，标记后的加成文字不影响属性计算 */
+    public static final String LORE_MARKER = "\u00A7X\u200B";
 
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
@@ -39,6 +45,7 @@ public class ItemFactory {
     private final NamespacedKey keyHoles;
     private final NamespacedKey keyGems;
     private final NamespacedKey keySocketLines;
+    private final NamespacedKey keyBaseLines;
     private final NamespacedKey keyUuid;
     private final NamespacedKey keyCount;
     private final NamespacedKey keySources;
@@ -52,6 +59,7 @@ public class ItemFactory {
         this.keyHoles = key("holes");
         this.keyGems = key("gems");
         this.keySocketLines = key("socketLines");
+        this.keyBaseLines = key("baseLines");
         this.keyUuid = key("uuid");
         this.keyCount = key("count");
         this.keySources = key("sources");
@@ -232,27 +240,52 @@ public class ItemFactory {
         if (lines == null || lines.isEmpty()) {
             return;
         }
-        item.editMeta(meta -> {
-            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-            lore.addAll(lines);
-            meta.setLore(lore);
-        });
+        List<String> lore = item.getItemMeta() != null && item.getItemMeta().hasLore()
+                ? new ArrayList<>(item.getItemMeta().getLore())
+                : new ArrayList<>();
+        lore.addAll(lines);
+        setLore(item, lore);
     }
 
     public void removeLoreLines(ItemStack item, List<String> lines) {
         if (lines == null || lines.isEmpty()) {
             return;
         }
+        if (item.getItemMeta() == null || !item.getItemMeta().hasLore()) {
+            return;
+        }
+        List<String> lore = new ArrayList<>(item.getItemMeta().getLore());
+        for (String line : lines) {
+            lore.remove(line);
+        }
+        setLore(item, lore);
+    }
+
+    /**
+     * 写入 lore：普通行按传统 § 代码解析；包含合并标记的行，标记部分作为字面文本写入，
+     * 避免 Paper 的传统 setLore 把 §X 吞掉。
+     */
+    public void setLore(ItemStack item, List<String> lore) {
         item.editMeta(meta -> {
-            if (!meta.hasLore()) {
+            if (lore == null || lore.isEmpty()) {
+                meta.lore(null);
                 return;
             }
-            List<String> lore = new ArrayList<>(meta.getLore());
-            for (String line : lines) {
-                lore.remove(line);
+            List<Component> components = new ArrayList<>();
+            for (String line : lore) {
+                components.add(toComponent(line));
             }
-            meta.setLore(lore.isEmpty() ? null : lore);
+            meta.lore(components);
         });
+    }
+
+    private static Component toComponent(String line) {
+        int markerIndex = line.indexOf(LORE_MARKER);
+        if (markerIndex < 0) {
+            return LegacyComponentSerializer.legacySection().deserialize(line);
+        }
+        Component prefix = LegacyComponentSerializer.legacySection().deserialize(line.substring(0, markerIndex));
+        return prefix.append(Component.text(line.substring(markerIndex)));
     }
 
     // ------------------------------------------------------------------
@@ -294,11 +327,13 @@ public class ItemFactory {
             int index = 1;
             for (SocketedGem gem : data.gems()) {
                 String gemName = resolveGemName(gem.id());
+                String gemValues = resolveGemValues(gem);
                 for (String line : template.gemLines()) {
                     newLines.add(colorize(line
                             .replace("{index}", String.valueOf(index))
                             .replace("{gem}", gemName)
-                            .replace("{id}", gem.id())));
+                            .replace("{id}", gem.id())
+                            .replace("{values}", gemValues)));
                 }
                 index++;
             }
@@ -330,6 +365,57 @@ public class ItemFactory {
             writeList(container, lines);
             pdc.set(keySocketLines, PersistentDataType.TAG_CONTAINER, container);
         });
+    }
+
+    /**
+     * 读取属性合并前的原始属性行（属性名 -> 原始 lore 行）。
+     */
+    public Map<String, String> readBaseLines(ItemStack item) {
+        if (item == null) {
+            return Map.of();
+        }
+        PersistentDataContainer container = item.getPersistentDataContainer().get(keyBaseLines, PersistentDataType.TAG_CONTAINER);
+        return readMap(container);
+    }
+
+    /**
+     * 保存属性合并前的原始属性行，用于拆卸/重算时还原。
+     */
+    public void writeBaseLines(ItemStack item, Map<String, String> baseLines) {
+        item.editPersistentDataContainer(pdc -> {
+            if (baseLines == null || baseLines.isEmpty()) {
+                pdc.remove(keyBaseLines);
+                return;
+            }
+            pdc.set(keyBaseLines, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), baseLines));
+        });
+    }
+
+    /**
+     * 生成宝石的数值描述（用于镶嵌信息 lore 的 {values} 占位符）。
+     */
+    public String resolveGemValues(SocketedGem gem) {
+        GemDefinition definition = configs.getGem(gem.id());
+        if (definition == null) {
+            return gem.id();
+        }
+        return definition.getAttribute().stream()
+                .map(line -> resolve(line, gem.values()))
+                .map(ItemFactory::stripLoreText)
+                .filter(line -> !line.isEmpty())
+                .collect(Collectors.joining("、"));
+    }
+
+    /**
+     * 去掉 lore 文本中的颜色代码（§x）与 <#XXXXXX> 标记，返回纯文本。
+     */
+    public static String stripLoreText(String line) {
+        if (line == null) {
+            return "";
+        }
+        String stripped = line.replaceAll("<#[0-9a-fA-F]{6}>", "");
+        stripped = stripped.replaceAll("\u00A7.", "");
+        return stripped.trim();
     }
 
     // ------------------------------------------------------------------
