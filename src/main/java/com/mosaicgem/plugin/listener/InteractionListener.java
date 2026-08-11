@@ -1,10 +1,13 @@
 package com.mosaicgem.plugin.listener;
 
+import com.mosaicgem.plugin.MosaicGemPlugin;
 import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.model.OperationResult;
 import com.mosaicgem.plugin.service.GemService;
 import com.mosaicgem.plugin.util.ItemFactory;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,6 +19,7 @@ import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 
 /**
  * 三种交互方式：铁砧、合成台、拖拽。
@@ -93,6 +97,7 @@ public class InteractionListener implements Listener {
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
         }
+        refreshSxAttributes(player);
         send(player, result.message());
     }
 
@@ -154,6 +159,7 @@ public class InteractionListener implements Listener {
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
         }
+        refreshSxAttributes(player);
         send(player, result.message());
     }
 
@@ -227,6 +233,7 @@ public class InteractionListener implements Listener {
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
         }
+        refreshSxAttributes(player);
         send(player, result.message());
     }
 
@@ -291,5 +298,24 @@ public class InteractionListener implements Listener {
             return;
         }
         player.sendMessage(ItemFactory.colorize(configs.prefix() + message));
+    }
+
+    /**
+     * 操作成功修改了物品后，通知 SX-Attribute 重新计算玩家属性，
+     * 避免拖拽镶嵌等场景下属性要等切手/重进才生效。
+     */
+    private void refreshSxAttributes(Player player) {
+        Plugin sx = Bukkit.getPluginManager().getPlugin("SX-Attribute");
+        if (sx == null) {
+            return;
+        }
+        try {
+            Class<?> sxClass = Class.forName("github.saukiya.sxattribute.SXAttribute", true, sx.getClass().getClassLoader());
+            Object api = sxClass.getMethod("getApi").invoke(null);
+            api.getClass().getMethod("updateData", LivingEntity.class).invoke(api, player);
+            api.getClass().getMethod("attributeUpdate", LivingEntity.class).invoke(api, player);
+        } catch (ReflectiveOperationException e) {
+            MosaicGemPlugin.instance().getLogger().warning("刷新 SX-Attribute 属性失败: " + e.getMessage());
+        }
     }
 }

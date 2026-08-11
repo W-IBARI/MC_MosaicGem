@@ -347,10 +347,10 @@ public class ItemFactory {
             String max = String.valueOf(data.holes());
             String gemCount = String.valueOf(data.gems().size());
             for (String line : template.lines()) {
-                newLines.add(SOCKET_MARKER + colorize(line
+                newLines.add(socketLine(colorize(line
                         .replace("{holes}", holes)
                         .replace("{max_holes}", max)
-                        .replace("{gem_count}", gemCount)));
+                        .replace("{gem_count}", gemCount))));
             }
             int index = 1;
             for (SocketedGem gem : data.gems()) {
@@ -368,18 +368,18 @@ public class ItemFactory {
                             continue;
                         }
                         for (String value : valueLines) {
-                            newLines.add(SOCKET_MARKER + colorize(base.replace("{value_lines}", value)));
+                            newLines.add(socketLine(colorize(base.replace("{value_lines}", value))));
                         }
                     } else {
-                        newLines.add(SOCKET_MARKER + colorize(base));
+                        newLines.add(socketLine(colorize(base)));
                     }
                 }
                 index++;
             }
             if (data.gems().isEmpty() && template.emptyLine() != null && !template.emptyLine().isEmpty()) {
-                newLines.add(SOCKET_MARKER + colorize(template.emptyLine()
+                newLines.add(socketLine(colorize(template.emptyLine()
                         .replace("{holes}", holes)
-                        .replace("{max_holes}", max)));
+                        .replace("{max_holes}", max))));
             }
         }
 
@@ -387,6 +387,15 @@ public class ItemFactory {
             appendLore(item, newLines);
         }
         writeSocketLines(item, newLines);
+    }
+
+    /**
+     * 生成以镶嵌信息标记开头的 lore 行。
+     * 注意：行内容不能恰好等于 §X，否则 SX-Attribute 的 split("§X")[0] 会得到空数组并崩溃；
+     * 空行统一写成 §X + 零宽空格（玩家视角仍是无字空行，且不会被序列化器丢弃）。
+     */
+    private static String socketLine(String text) {
+        return SOCKET_MARKER + (text == null || text.isEmpty() ? "\u200B" : text);
     }
 
     private String resolveGemName(String id) {
