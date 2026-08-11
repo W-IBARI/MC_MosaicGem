@@ -12,6 +12,7 @@ import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -306,6 +307,10 @@ public class ItemFactory {
         // 标记前的原始文本同样原样保留
         Component prefix = Component.text(colored.substring(0, markerIndex));
         Component suffix = LegacyComponentSerializer.legacySection().deserialize(colored.substring(markerIndex + 2));
+        // 客户端 lore 默认样式为斜体；模板未显式指定斜体时强制关闭，保证默认正体
+        if (suffix.style().decoration(TextDecoration.ITALIC) != TextDecoration.State.TRUE) {
+            suffix = suffix.decoration(TextDecoration.ITALIC, false);
+        }
         return prefix.append(Component.text(colored.substring(markerIndex, markerIndex + 2))).append(suffix);
     }
 

@@ -14,6 +14,8 @@ import com.mosaicgem.plugin.service.AttributeLoreService;
 import com.mosaicgem.plugin.util.ItemFactory;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -336,6 +338,13 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             AttributeLoreService attributeLoreService = new AttributeLoreService(configs, factory);
             attributeLoreService.update(sword, List.of(gem));
             factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem)), configs.socketLore());
+            Component mergedComponent = sword.lore().stream()
+                    .filter(line -> LegacyComponentSerializer.legacySection().serialize(line).contains("（+20"))
+                    .findFirst()
+                    .orElse(null);
+            if (mergedComponent == null || !hasItalicFalse(mergedComponent)) {
+                throw new IllegalStateException("合并行未显式关闭斜体");
+            }
             java.util.function.Function<String, String> escape = s -> s.replace("\u00A7", "\\u00A7").replace("\u200B", "\\u200B");
             List<String> resultLore = sword.getItemMeta().getLore();
             String mergedLine = resultLore.get(1);
@@ -420,6 +429,13 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             if (holeLines != 1) {
                 throw new IllegalStateException("打孔后孔位行重复: " + punchSword.getItemMeta().getLore());
             }
+            Component holeComponent = punchSword.lore().stream()
+                    .filter(line -> LegacyComponentSerializer.legacySection().serialize(line).contains("孔位"))
+                    .findFirst()
+                    .orElse(null);
+            if (holeComponent == null || !hasItalicFalse(holeComponent)) {
+                throw new IllegalStateException("镶嵌信息行未显式关闭斜体");
+            }
             ok++;
         } catch (Exception e) {
             fail++;
@@ -434,6 +450,18 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             }
         }
         return true;
+    }
+
+    private static boolean hasItalicFalse(Component component) {
+        if (component.style().decoration(TextDecoration.ITALIC) == TextDecoration.State.FALSE) {
+            return true;
+        }
+        for (Component child : component.children()) {
+            if (hasItalicFalse(child)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------
