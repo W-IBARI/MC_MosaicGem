@@ -79,8 +79,11 @@ public class InteractionListener implements Listener {
             return;
         }
 
-        inventory.setItem(0, null);
-        inventory.setItem(1, null);
+        boolean toolInSlot1 = factory.getToolType(inventory.getItem(1)) != null;
+        ItemStack toolStack = toolInSlot1 ? inventory.getItem(1) : inventory.getItem(0);
+        ItemStack remainingTool = consumeOne(toolStack);
+        inventory.setItem(0, toolInSlot1 ? null : remainingTool);
+        inventory.setItem(1, toolInSlot1 ? remainingTool : null);
         inventory.setItem(2, null);
         event.setCursor(result.targetItem());
         if (result.returnItem() != null) {
@@ -134,8 +137,11 @@ public class InteractionListener implements Listener {
             return;
         }
 
-        inventory.setItem(matrixCombo.toolIndex(), null);
-        inventory.setItem(matrixCombo.targetIndex(), null);
+        // 合成台物品槽：0 为结果槽，矩阵槽从 1 开始
+        int toolSlot = matrixCombo.toolIndex() + 1;
+        int targetSlot = matrixCombo.targetIndex() + 1;
+        inventory.setItem(toolSlot, consumeOne(inventory.getItem(toolSlot)));
+        inventory.setItem(targetSlot, null);
         inventory.setResult(null);
         event.setCursor(result.targetItem());
         if (result.returnItem() != null) {
@@ -164,21 +170,20 @@ public class InteractionListener implements Listener {
 
         ItemStack cursor = event.getCursor();
         boolean cursorIsTool = factory.getToolType(cursor) != null;
-        // 只有光标上已经吸附工具时，本次点击才被视为拖拽操作；
-        // 点击工具本身（拾取/换位）或点击空格由原版处理，不拦截、不提示
+        // 只有光标上已经吸附工具时，本次点击才被视为拖拽操作
         if (!cursorIsTool) {
             return;
         }
 
         ItemStack clicked = event.getCurrentItem();
+        // 点击空格：原样放置，不拦截
         if (clicked == null || clicked.getType().isAir()) {
             return;
         }
 
         Player player = (Player) event.getWhoClicked();
+        // 目标是插件物品（工具）：可能是同类工具合并或换位，交给原版处理，不拦截、不提示
         if (factory.getToolType(clicked) != null) {
-            event.setCancelled(true);
-            send(player, configs.message("invalid-combination"));
             return;
         }
 
@@ -196,7 +201,8 @@ public class InteractionListener implements Listener {
             return;
         }
 
-        event.setCursor(null);
+        // 一次行为只消耗一个工具，剩余继续吸附在光标上
+        event.setCursor(consumeOne(cursor));
         event.setCurrentItem(result.targetItem());
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
@@ -246,6 +252,18 @@ public class InteractionListener implements Listener {
             player.getWorld().dropItem(player.getLocation(), rest);
             send(player, configs.message("inventory-full"));
         }
+    }
+
+    /**
+     * 从一组工具中消耗一个，返回剩余部分（只剩一个时返回 null）。
+     */
+    private ItemStack consumeOne(ItemStack stack) {
+        if (stack == null || stack.getAmount() <= 1) {
+            return null;
+        }
+        ItemStack copy = stack.clone();
+        copy.setAmount(stack.getAmount() - 1);
+        return copy;
     }
 
     private void send(Player player, String message) {
