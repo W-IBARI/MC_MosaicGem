@@ -1,0 +1,13 @@
+name: MosaicGem
+version: '${projectVersion}'
+main: com.mosaicgem.plugin.MosaicGemPlugin
+api-version: '26.2'
+folia-supported: true
+authors:
+  - MosaicGem
+description: MosaicGem plugin for Folia 26.2
+
+commands:
+  mosaicgem:
+    description: 测试 MosaicGem 插件是否正常工作
+    usage: /mosaicgem
