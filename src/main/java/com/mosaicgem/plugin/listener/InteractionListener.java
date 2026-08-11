@@ -166,7 +166,14 @@ public class InteractionListener implements Listener {
         ItemStack clicked = event.getCurrentItem();
         boolean cursorIsTool = factory.getToolType(cursor) != null;
         boolean clickedIsTool = factory.getToolType(clicked) != null;
-        if (cursorIsTool == clickedIsTool) {
+        if (!cursorIsTool && !clickedIsTool) {
+            return;
+        }
+        event.setCancelled(true);
+
+        Player player = (Player) event.getWhoClicked();
+        if (cursorIsTool && clickedIsTool) {
+            send(player, configs.message("invalid-combination"));
             return;
         }
 
@@ -174,11 +181,10 @@ public class InteractionListener implements Listener {
         ItemStack target = cursorIsTool ? clicked : cursor;
         GemService.Combo combo = service.findCombo(tool, target);
         if (combo == null) {
+            send(player, configs.message("tool-config-missing"));
             return;
         }
-        event.setCancelled(true);
 
-        Player player = (Player) event.getWhoClicked();
         OperationResult result = service.perform(combo, player);
         if (!result.consumeTool()) {
             send(player, result.message());

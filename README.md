@@ -8,7 +8,13 @@ Minecraft 服务器插件项目，目标服务端为 **Folia 26.2**，游戏版�
 - 宝石镶嵌：将宝石注入装备，属性行写入装备 lore，由 SX-Attribute 自动读取生效
 - 宝石拆卸：使用拆卸器移除已镶嵌宝石，并原样返还宝石（随机数值不丢失）
 - 三种交互方式（可在配置中开关）：铁砧合成、工作台合成、拖拽工具到目标物品
-- 指令：`/mosaicgem reload`、`/mosaicgem give`、`/mosaicgem debug`、`/mosaicgem list`
+- 指令：`/mosaicgem reload`、`/mosaicgem give`、`/mosaicgem debug`、`/mosaicgem list`、`/mosaicgem selftest`
+
+## 规则约定
+
+- `rate` 为百分比（0-100），打孔/拆卸失败时消耗工具本身，不会消耗目标物品或已镶嵌宝石
+- 孔数上限为双维度：全局 `max-holes` 是硬上限（所有来源孔数之和不可超过）；打孔器 `holesnum` 是来源上限（该打孔器类型给同一物品贡献的孔数不可超过）。任一上限未满足都会被拦截
+- 所有被拦截/失败的交互都会向玩家发送提示，文案可在 `config.yml` 的 `messages` 段修改
 
 ## 开发环境
 

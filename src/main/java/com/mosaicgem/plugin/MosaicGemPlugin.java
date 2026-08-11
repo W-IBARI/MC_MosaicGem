@@ -9,6 +9,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+
 public final class MosaicGemPlugin extends JavaPlugin {
 
     private static MosaicGemPlugin instance;
@@ -28,9 +30,9 @@ public final class MosaicGemPlugin extends JavaPlugin {
         instance = this;
 
         saveDefaultConfig();
-        saveResource("gems.yml", false);
-        saveResource("punchers.yml", false);
-        saveResource("removers.yml", false);
+        saveResourceIfAbsent("gems.yml");
+        saveResourceIfAbsent("punchers.yml");
+        saveResourceIfAbsent("removers.yml");
 
         configManager = new ConfigManager(this);
         configManager.load();
@@ -59,5 +61,11 @@ public final class MosaicGemPlugin extends JavaPlugin {
         reloadConfig();
         configManager.load();
         getLogger().info("配置已重载");
+    }
+
+    private void saveResourceIfAbsent(String name) {
+        if (!new File(getDataFolder(), name).exists()) {
+            saveResource(name, false);
+        }
     }
 }

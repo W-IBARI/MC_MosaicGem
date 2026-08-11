@@ -37,6 +37,7 @@ public class ItemFactory {
     private final NamespacedKey keyGems;
     private final NamespacedKey keyUuid;
     private final NamespacedKey keyCount;
+    private final NamespacedKey keySources;
 
     public ItemFactory(MosaicGemPlugin plugin) {
         this.plugin = plugin;
@@ -47,6 +48,7 @@ public class ItemFactory {
         this.keyGems = key("gems");
         this.keyUuid = key("uuid");
         this.keyCount = key("count");
+        this.keySources = key("sources");
     }
 
     // ------------------------------------------------------------------
@@ -128,10 +130,15 @@ public class ItemFactory {
 
     public SocketData readSocketData(ItemStack item) {
         if (item == null) {
-            return new SocketData(0, List.of());
+            return new SocketData(0, Map.of(), List.of());
         }
         PersistentDataContainerView pdc = item.getPersistentDataContainer();
         int holes = pdc.getOrDefault(keyHoles, PersistentDataType.INTEGER, 0);
+        Map<String, Integer> holeSources = readSources(pdc.get(keySources, PersistentDataType.TAG_CONTAINER));
+        if (holeSources.isEmpty() && holes > 0) {
+            // 兼容旧数据：只有总孔数、没有来源记录时，统一归入 legacy 来源
+            holeSources = new LinkedHashMap<>(Map.of("legacy", holes));
+        }
         List<SocketedGem> gems = new ArrayList<>();
         PersistentDataContainer[] array = pdc.get(keyGems, PersistentDataType.TAG_CONTAINER_ARRAY);
         if (array != null) {
@@ -144,17 +151,23 @@ public class ItemFactory {
                 gems.add(new SocketedGem(id, instanceId, readMap(gemContainer.get(keyValues, PersistentDataType.TAG_CONTAINER)), readList(gemContainer)));
             }
         }
-        return new SocketData(holes, gems);
+        return new SocketData(holes, holeSources, gems);
     }
 
-    public void writeSocketData(ItemStack item, int holes, List<SocketedGem> gems) {
+    public void writeSocketData(ItemStack item, int holes, Map<String, Integer> holeSources, List<SocketedGem> gems) {
         item.editPersistentDataContainer(pdc -> {
-            if (holes <= 0 && gems.isEmpty()) {
+            if (holes <= 0 && holeSources.isEmpty() && gems.isEmpty()) {
                 pdc.remove(keyHoles);
                 pdc.remove(keyGems);
+                pdc.remove(keySources);
                 return;
             }
             pdc.set(keyHoles, PersistentDataType.INTEGER, Math.max(0, holes));
+            if (holeSources.isEmpty()) {
+                pdc.remove(keySources);
+            } else {
+                pdc.set(keySources, PersistentDataType.TAG_CONTAINER, writeSources(pdc.getAdapterContext(), holeSources));
+            }
             if (gems.isEmpty()) {
                 pdc.remove(keyGems);
                 return;
@@ -175,6 +188,34 @@ public class ItemFactory {
             }
             pdc.set(keyGems, PersistentDataType.TAG_CONTAINER_ARRAY, array);
         });
+    }
+
+    private PersistentDataContainer writeSources(PersistentDataAdapterContext context, Map<String, Integer> holeSources) {
+        PersistentDataContainer container = context.newPersistentDataContainer();
+        int index = 0;
+        for (Map.Entry<String, Integer> entry : holeSources.entrySet()) {
+            container.set(key("s" + index), PersistentDataType.STRING, entry.getKey());
+            container.set(key("c" + index), PersistentDataType.INTEGER, entry.getValue());
+            index++;
+        }
+        container.set(keyCount, PersistentDataType.INTEGER, index);
+        return container;
+    }
+
+    private Map<String, Integer> readSources(PersistentDataContainer container) {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        if (container == null) {
+            return result;
+        }
+        int count = container.getOrDefault(keyCount, PersistentDataType.INTEGER, 0);
+        for (int i = 0; i < count; i++) {
+            String source = container.get(key("s" + i), PersistentDataType.STRING);
+            Integer value = container.get(key("c" + i), PersistentDataType.INTEGER);
+            if (source != null && value != null && value > 0) {
+                result.put(source, value);
+            }
+        }
+        return result;
     }
 
     // ------------------------------------------------------------------

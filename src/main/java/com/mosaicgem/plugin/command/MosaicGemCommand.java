@@ -22,6 +22,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,6 +53,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             case "give" -> give(sender, args);
             case "debug" -> debug(sender, args);
             case "list" -> list(sender, args);
+            case "selftest" -> selftest(sender);
             default -> {
                 sendHelp(sender);
                 yield true;
@@ -221,6 +223,92 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /**
+     * 自检：不依赖玩家环境，验证配置解析、物品生成与组件读写。
+     */
+    private boolean selftest(CommandSender sender) {
+        if (!hasPermission(sender, "mosaicgem.debug")) {
+            return true;
+        }
+        List<String> lines = new ArrayList<>();
+        int ok = 0;
+        int fail = 0;
+
+        for (GemDefinition definition : configs.getGems().values()) {
+            try {
+                Map<String, String> values = factory.rollRandom(definition);
+                ItemStack item = factory.buildGem(definition, values);
+                if (factory.getToolType(item) != ToolType.GEM) {
+                    throw new IllegalStateException("宝石标记缺失");
+                }
+                if (!factory.readValues(item).equals(values)) {
+                    throw new IllegalStateException("随机数读写不一致");
+                }
+                ok++;
+            } catch (Exception e) {
+                fail++;
+                lines.add("&c宝石 [&f" + definition.getId() + "&c] 失败: " + e.getMessage());
+            }
+        }
+        for (PuncherDefinition definition : configs.getPunchers().values()) {
+            try {
+                ItemStack item = factory.buildPuncher(definition);
+                if (factory.getToolType(item) != ToolType.PUNCHER) {
+                    throw new IllegalStateException("打孔器标记缺失");
+                }
+                ok++;
+            } catch (Exception e) {
+                fail++;
+                lines.add("&c打孔器 [&f" + definition.getId() + "&c] 失败: " + e.getMessage());
+            }
+        }
+        for (RemoverDefinition definition : configs.getRemovers().values()) {
+            try {
+                ItemStack item = factory.buildRemover(definition);
+                if (factory.getToolType(item) != ToolType.REMOVER) {
+                    throw new IllegalStateException("拆卸器标记缺失");
+                }
+                ok++;
+            } catch (Exception e) {
+                fail++;
+                lines.add("&c拆卸器 [&f" + definition.getId() + "&c] 失败: " + e.getMessage());
+            }
+        }
+
+        try {
+            ItemStack sword = new ItemStack(Material.IRON_SWORD);
+            Map<String, String> values = new LinkedHashMap<>();
+            values.put("random_value", "15.23");
+            SocketedGem gem = new SocketedGem("测试宝石", "test-uuid", values, List.of("攻击力：15.23"));
+            Map<String, Integer> sources = new LinkedHashMap<>();
+            sources.put("测试打孔器", 1);
+            factory.writeSocketData(sword, 1, sources, List.of(gem));
+            SocketData data = factory.readSocketData(sword);
+            if (data.holes() != 1) {
+                throw new IllegalStateException("孔数读写不一致: " + data.holes());
+            }
+            if (!data.holeSources().equals(sources)) {
+                throw new IllegalStateException("来源孔数读写不一致");
+            }
+            if (data.gems().size() != 1 || !data.gems().get(0).id().equals("测试宝石")) {
+                throw new IllegalStateException("宝石数据读写不一致");
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add("&c镶嵌数据读写失败: " + e.getMessage());
+        }
+
+        sender.sendMessage(ItemFactory.colorize("&7===== MosaicGem Selftest ====="));
+        sender.sendMessage(ItemFactory.colorize("&a通过: &f" + ok + " &7/ 失败: &f" + fail));
+        if (fail > 0) {
+            for (String line : lines) {
+                sender.sendMessage(ItemFactory.colorize(line));
+            }
+        }
+        return true;
+    }
+
     // ------------------------------------------------------------------
     // Tab 补全
     // ------------------------------------------------------------------
@@ -229,7 +317,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> result = new ArrayList<>();
         if (args.length == 1) {
-            result.addAll(List.of("reload", "give", "debug", "list"));
+            result.addAll(List.of("reload", "give", "debug", "list", "selftest"));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
             result.addAll(List.of("gem", "puncher", "remover"));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
@@ -281,7 +369,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                         + "&7/mosaicgem reload &8- &f重载配置\n"
                         + "&7/mosaicgem give <gem|puncher|remover> <id> [数量] [玩家] &8- &f给予物品\n"
                         + "&7/mosaicgem debug [玩家] &8- &f查看物品调试信息\n"
-                        + "&7/mosaicgem list <gem|puncher|remover> &8- &f查看已配置物品"));
+                        + "&7/mosaicgem list <gem|puncher|remover> &8- &f查看已配置物品\n"
+                        + "&7/mosaicgem selftest &8- &f自检配置与数据读写"));
     }
 
     private void send(CommandSender sender, String message) {

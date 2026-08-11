@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -111,22 +112,25 @@ public class GemService {
             return fail(configs.message("target-invalid"), target, false);
         }
         SocketData data = factory.readSocketData(target);
-        int cap = configs.maxHoles();
-        if (definition.getHolesnum() != null) {
-            cap = Math.min(cap, definition.getHolesnum());
+        int globalMax = configs.maxHoles();
+        if (data.holes() >= globalMax) {
+            return fail(configs.message("punch-max-global").replace("{max}", String.valueOf(globalMax)), target, false);
         }
-        if (data.holes() >= cap) {
-            return fail(configs.message("punch-max"), target, false);
+        Map<String, Integer> sources = new LinkedHashMap<>(data.holeSources());
+        int sourceCount = sources.getOrDefault(definition.getId(), 0);
+        if (definition.getHolesnum() != null && sourceCount >= definition.getHolesnum()) {
+            return fail(configs.message("punch-max-source").replace("{max}", String.valueOf(definition.getHolesnum())), target, false);
         }
         if (!roll(definition.getRate())) {
-            return fail(configs.message("punch-fail"), target, configs.consumeOnFail());
+            return fail(configs.message("punch-fail"), target, true);
         }
+        sources.put(definition.getId(), sourceCount + 1);
         int newHoles = data.holes() + 1;
         ItemStack result = target.clone();
-        factory.writeSocketData(result, newHoles, data.gems());
+        factory.writeSocketData(result, newHoles, sources, data.gems());
         String message = configs.message("punch-success")
                 .replace("{holes}", String.valueOf(newHoles))
-                .replace("{max}", String.valueOf(cap));
+                .replace("{max}", String.valueOf(globalMax));
         return new OperationResult(result, null, true, message);
     }
 
@@ -140,8 +144,14 @@ public class GemService {
             return fail(configs.message("target-invalid"), target, false);
         }
         SocketData data = factory.readSocketData(target);
-        if (data.holes() <= data.gems().size()) {
+        if (data.holes() <= 0) {
             return fail(configs.message("socket-no-hole"), target, false);
+        }
+        if (data.gems().size() >= data.holes()) {
+            return fail(configs.message("socket-full"), target, false);
+        }
+        if (!"sx_attribute".equalsIgnoreCase(definition.getBuffType())) {
+            return fail(configs.message("socket-bufftype-unsupported"), target, false);
         }
         if (definition.getRepetitions() != null) {
             long count = data.gems().stream().filter(gem -> gem.id().equals(definition.getId())).count();
@@ -161,7 +171,7 @@ public class GemService {
         gems.add(socketedGem);
 
         ItemStack result = target.clone();
-        factory.writeSocketData(result, data.holes(), gems);
+        factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.appendLore(result, lines);
         return new OperationResult(result, null, true, configs.message("socket-success"));
     }
@@ -180,7 +190,7 @@ public class GemService {
             return fail(configs.message("remove-empty"), target, false);
         }
         if (!roll(definition.getRate())) {
-            return fail(configs.message("remove-fail"), target, configs.consumeOnFail());
+            return fail(configs.message("remove-fail"), target, true);
         }
 
         SocketedGem removed = data.gems().get(data.gems().size() - 1);
@@ -188,7 +198,7 @@ public class GemService {
         gems.remove(gems.size() - 1);
 
         ItemStack result = target.clone();
-        factory.writeSocketData(result, data.holes(), gems);
+        factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.removeLoreLines(result, removed.lines());
 
         ItemStack returnedGem = buildReturnedGem(removed);

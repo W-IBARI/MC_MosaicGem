@@ -11,7 +11,7 @@ public class RemoverDefinition extends ItemDefinition {
 
     public RemoverDefinition(String id, ConfigurationSection section) {
         super(id, section);
-        this.rate = section.getInt("rate", 100);
+        this.rate = Math.max(0, Math.min(100, section.getInt("rate", 100)));
     }
 
     public int getRate() {

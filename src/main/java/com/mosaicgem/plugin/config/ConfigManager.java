@@ -107,10 +107,6 @@ public class ConfigManager {
         return config.getBoolean("settings.interactions." + name, true);
     }
 
-    public boolean consumeOnFail() {
-        return config.getBoolean("settings.consume-on-fail", true);
-    }
-
     public String prefix() {
         return config.getString("messages.prefix", "&8[&6MosaicGem&8] ");
     }

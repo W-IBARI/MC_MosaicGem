@@ -12,7 +12,7 @@ description: 宝石镶嵌插件（打孔 / 镶嵌 / 拆卸），支持 SX-Attrib
 commands:
   mosaicgem:
     description: MosaicGem 主指令
-    usage: /mosaicgem <reload|give|debug|list>
+    usage: /mosaicgem <reload|give|debug|list|selftest>
     aliases:
       - mg
       - mgem
