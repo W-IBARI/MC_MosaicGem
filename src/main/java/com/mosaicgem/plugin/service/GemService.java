@@ -128,6 +128,7 @@ public class GemService {
         int newHoles = data.holes() + 1;
         ItemStack result = target.clone();
         factory.writeSocketData(result, newHoles, sources, data.gems());
+        factory.applySocketLore(result, new SocketData(newHoles, sources, data.gems()), configs.socketLore(), configs.maxHoles());
         String message = configs.message("punch-success")
                 .replace("{holes}", String.valueOf(newHoles))
                 .replace("{max}", String.valueOf(globalMax));
@@ -173,6 +174,7 @@ public class GemService {
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.appendLore(result, lines);
+        factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore(), configs.maxHoles());
         return new OperationResult(result, null, true, configs.message("socket-success"));
     }
 
@@ -200,6 +202,7 @@ public class GemService {
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.removeLoreLines(result, removed.lines());
+        factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore(), configs.maxHoles());
 
         ItemStack returnedGem = buildReturnedGem(removed);
         return new OperationResult(result, returnedGem, true, configs.message("remove-success"));
@@ -238,18 +241,34 @@ public class GemService {
         if (definition.getTargetMaterial().isEmpty() && definition.getTargetType().isEmpty()) {
             return true;
         }
-        for (String materialName : definition.getTargetMaterial()) {
-            Material material = Material.matchMaterial(materialName);
-            if (material != null && target.getType() == material) {
-                return true;
+        // 材质限制与类型限制为“且”关系：任一限制不满足都拦截
+        if (!definition.getTargetMaterial().isEmpty()) {
+            boolean materialMatched = false;
+            for (String materialName : definition.getTargetMaterial()) {
+                Material material = Material.matchMaterial(materialName);
+                if ((material != null && target.getType() == material)
+                        || target.getType().name().equalsIgnoreCase(materialName)) {
+                    materialMatched = true;
+                    break;
+                }
+            }
+            if (!materialMatched) {
+                return false;
             }
         }
-        for (String type : definition.getTargetType()) {
-            if (TargetMatcher.matchesType(target.getType(), type)) {
-                return true;
+        if (!definition.getTargetType().isEmpty()) {
+            boolean typeMatched = false;
+            for (String type : definition.getTargetType()) {
+                if (TargetMatcher.matchesType(target.getType(), type)) {
+                    typeMatched = true;
+                    break;
+                }
+            }
+            if (!typeMatched) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     private boolean roll(int rate) {

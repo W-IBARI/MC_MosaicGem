@@ -1,10 +1,12 @@
 package com.mosaicgem.plugin.util;
 
 import com.mosaicgem.plugin.MosaicGemPlugin;
+import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.config.GemDefinition;
 import com.mosaicgem.plugin.config.ItemDefinition;
 import com.mosaicgem.plugin.config.PuncherDefinition;
 import com.mosaicgem.plugin.config.RemoverDefinition;
+import com.mosaicgem.plugin.config.SocketLoreTemplate;
 import com.mosaicgem.plugin.model.SocketData;
 import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
@@ -29,23 +31,27 @@ import java.util.concurrent.ThreadLocalRandom;
 public class ItemFactory {
 
     private final MosaicGemPlugin plugin;
+    private final ConfigManager configs;
 
     private final NamespacedKey keyItem;
     private final NamespacedKey keyId;
     private final NamespacedKey keyValues;
     private final NamespacedKey keyHoles;
     private final NamespacedKey keyGems;
+    private final NamespacedKey keySocketLines;
     private final NamespacedKey keyUuid;
     private final NamespacedKey keyCount;
     private final NamespacedKey keySources;
 
-    public ItemFactory(MosaicGemPlugin plugin) {
+    public ItemFactory(MosaicGemPlugin plugin, ConfigManager configs) {
         this.plugin = plugin;
+        this.configs = configs;
         this.keyItem = key("item");
         this.keyId = key("id");
         this.keyValues = key("values");
         this.keyHoles = key("holes");
         this.keyGems = key("gems");
+        this.keySocketLines = key("socketLines");
         this.keyUuid = key("uuid");
         this.keyCount = key("count");
         this.keySources = key("sources");
@@ -246,6 +252,82 @@ public class ItemFactory {
                 lore.remove(line);
             }
             meta.setLore(lore.isEmpty() ? null : lore);
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // 镶嵌信息 lore（孔位/宝石提示）
+    // ------------------------------------------------------------------
+
+    /**
+     * 读取上次写入的镶嵌信息行。
+     */
+    public List<String> readSocketLines(ItemStack item) {
+        if (item == null) {
+            return List.of();
+        }
+        PersistentDataContainer container = item.getPersistentDataContainer().get(keySocketLines, PersistentDataType.TAG_CONTAINER);
+        return readList(container);
+    }
+
+    /**
+     * 更新装备上的镶嵌信息 lore：先移除旧信息，再按模版写入新信息。
+     */
+    public void applySocketLore(ItemStack item, SocketData data, SocketLoreTemplate template, int maxHoles) {
+        List<String> oldLines = readSocketLines(item);
+        if (!oldLines.isEmpty()) {
+            removeLoreLines(item, oldLines);
+        }
+
+        List<String> newLines = new ArrayList<>();
+        if (template.enabled()) {
+            String holes = String.valueOf(data.holes());
+            String max = String.valueOf(maxHoles);
+            String gemCount = String.valueOf(data.gems().size());
+            for (String line : template.lines()) {
+                newLines.add(colorize(line
+                        .replace("{holes}", holes)
+                        .replace("{max_holes}", max)
+                        .replace("{gem_count}", gemCount)));
+            }
+            int index = 1;
+            for (SocketedGem gem : data.gems()) {
+                String gemName = resolveGemName(gem.id());
+                for (String line : template.gemLines()) {
+                    newLines.add(colorize(line
+                            .replace("{index}", String.valueOf(index))
+                            .replace("{gem}", gemName)
+                            .replace("{id}", gem.id())));
+                }
+                index++;
+            }
+            if (data.gems().isEmpty() && template.emptyLine() != null && !template.emptyLine().isEmpty()) {
+                newLines.add(colorize(template.emptyLine()
+                        .replace("{holes}", holes)
+                        .replace("{max_holes}", max)));
+            }
+        }
+
+        if (!newLines.isEmpty()) {
+            appendLore(item, newLines);
+        }
+        writeSocketLines(item, newLines);
+    }
+
+    private String resolveGemName(String id) {
+        GemDefinition definition = configs.getGem(id);
+        return definition == null ? id : colorize(definition.getName());
+    }
+
+    private void writeSocketLines(ItemStack item, List<String> lines) {
+        item.editPersistentDataContainer(pdc -> {
+            if (lines == null || lines.isEmpty()) {
+                pdc.remove(keySocketLines);
+                return;
+            }
+            PersistentDataContainer container = pdc.getAdapterContext().newPersistentDataContainer();
+            writeList(container, lines);
+            pdc.set(keySocketLines, PersistentDataType.TAG_CONTAINER, container);
         });
     }
 

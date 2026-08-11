@@ -54,3 +54,21 @@ messages:
   tool-config-missing: '&c该工具在配置中不存在，请联系管理员！'
   invalid-combination: '&c工具与目标物品的组合无效！'
   inventory-full: '&e背包已满，返还物品已掉落在地上。'
+
+# 装备上的镶嵌信息 lore（打孔/镶嵌/拆卸成功后自动更新）
+# 占位符：
+#   {holes}      当前已打孔数
+#   {max_holes}  全局孔数上限
+#   {gem_count}  已镶嵌宝石数量
+#   {index}      宝石序号（从 1 开始）
+#   {gem}        宝石显示名
+#   {id}         宝石内部名
+socket-lore:
+  enabled: true
+  lines:
+    - ''
+    - '&f[ &6镶嵌信息 &f]'
+    - '&7孔位: &f{holes}&7/&f{max_holes}'
+  gem-lines:
+    - '&7宝石{index}: &f{gem}'
+  empty-line: '&7暂无宝石'

@@ -4,6 +4,7 @@ import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.model.OperationResult;
 import com.mosaicgem.plugin.service.GemService;
 import com.mosaicgem.plugin.util.ItemFactory;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -86,6 +87,9 @@ public class InteractionListener implements Listener {
         inventory.setItem(1, toolInSlot1 ? remainingTool : null);
         inventory.setItem(2, null);
         event.setCursor(result.targetItem());
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            player.updateInventory();
+        }
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
         }
@@ -144,6 +148,9 @@ public class InteractionListener implements Listener {
         inventory.setItem(targetSlot, null);
         inventory.setResult(null);
         event.setCursor(result.targetItem());
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            player.updateInventory();
+        }
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
         }
@@ -191,6 +198,9 @@ public class InteractionListener implements Listener {
         if (combo == null) {
             event.setCancelled(true);
             send(player, configs.message("tool-config-missing"));
+            if (player.getGameMode() == GameMode.CREATIVE) {
+                player.updateInventory();
+            }
             return;
         }
         event.setCancelled(true);
@@ -198,12 +208,22 @@ public class InteractionListener implements Listener {
         OperationResult result = service.perform(combo, player);
         if (!result.consumeTool()) {
             send(player, result.message());
+            if (player.getGameMode() == GameMode.CREATIVE) {
+                player.updateInventory();
+            }
             return;
         }
 
         // 一次行为只消耗一个工具，剩余继续吸附在光标上
-        event.setCursor(consumeOne(cursor));
-        event.setCurrentItem(result.targetItem());
+        if (player.getGameMode() == GameMode.CREATIVE) {
+            // 创造模式下直接修改槽位并强制刷新，避免客户端残留/复制
+            event.getClickedInventory().setItem(event.getSlot(), result.targetItem());
+            event.getView().setCursor(consumeOne(cursor));
+            player.updateInventory();
+        } else {
+            event.setCursor(consumeOne(cursor));
+            event.setCurrentItem(result.targetItem());
+        }
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
         }

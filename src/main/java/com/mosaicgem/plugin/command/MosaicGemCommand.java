@@ -6,6 +6,7 @@ import com.mosaicgem.plugin.config.GemDefinition;
 import com.mosaicgem.plugin.config.ItemDefinition;
 import com.mosaicgem.plugin.config.PuncherDefinition;
 import com.mosaicgem.plugin.config.RemoverDefinition;
+import com.mosaicgem.plugin.config.SocketLoreTemplate;
 import com.mosaicgem.plugin.model.SocketData;
 import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
@@ -292,6 +293,11 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             }
             if (data.gems().size() != 1 || !data.gems().get(0).id().equals("测试宝石")) {
                 throw new IllegalStateException("宝石数据读写不一致");
+            }
+            SocketLoreTemplate template = configs.socketLore();
+            factory.applySocketLore(sword, data, template, configs.maxHoles());
+            if (template.enabled() && factory.readSocketLines(sword).isEmpty()) {
+                throw new IllegalStateException("镶嵌信息 lore 未写入");
             }
             ok++;
         } catch (Exception e) {

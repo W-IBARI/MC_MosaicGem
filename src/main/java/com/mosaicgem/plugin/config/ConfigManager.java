@@ -114,4 +114,8 @@ public class ConfigManager {
     public String message(String key) {
         return config.getString("messages." + key, key);
     }
+
+    public SocketLoreTemplate socketLore() {
+        return SocketLoreTemplate.from(config.getConfigurationSection("socket-lore"));
+    }
 }

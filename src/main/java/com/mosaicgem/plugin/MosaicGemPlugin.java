@@ -37,7 +37,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
         configManager = new ConfigManager(this);
         configManager.load();
 
-        itemFactory = new ItemFactory(this);
+        itemFactory = new ItemFactory(this, configManager);
         gemService = new GemService(this, configManager, itemFactory);
         interactionListener = new InteractionListener(configManager, itemFactory, gemService);
         Bukkit.getPluginManager().registerEvents(interactionListener, this);
