@@ -155,28 +155,28 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         }
         ItemStack item = target.getInventory().getItemInMainHand();
         if (item == null || item.getType().isAir()) {
-            send(sender, "&c" + target.getName() + " 主手没有物品");
+            send(sender, configs.message("debug-no-item").replace("{player}", target.getName()));
             return true;
         }
 
         List<String> lines = new ArrayList<>();
-        lines.add("&7===== MosaicGem Debug =====");
-        lines.add("&f持有者: &e" + target.getName());
-        lines.add("&f物品: &e" + item.getType().name());
-        lines.add("&f数量: &e" + item.getAmount());
+        lines.add(configs.message("debug-title"));
+        lines.add(configs.message("debug-holder").replace("{player}", target.getName()));
+        lines.add(configs.message("debug-item").replace("{item}", item.getType().name()));
+        lines.add(configs.message("debug-amount").replace("{amount}", String.valueOf(item.getAmount())));
         if (item.hasItemMeta()) {
             var meta = item.getItemMeta();
             if (meta.hasDisplayName()) {
-                lines.add("&f显示名: &e" + meta.getDisplayName());
+                lines.add(configs.message("debug-display-name").replace("{name}", meta.getDisplayName()));
             }
             if (meta.hasCustomModelData()) {
-                lines.add("&fCustomModelData: &e" + meta.getCustomModelData());
+                lines.add(configs.message("debug-custom-model-data").replace("{value}", String.valueOf(meta.getCustomModelData())));
             }
             if (meta.hasEnchantmentGlintOverride()) {
-                lines.add("&f附魔光效: &e" + meta.getEnchantmentGlintOverride());
+                lines.add(configs.message("debug-enchant-glint").replace("{value}", String.valueOf(meta.getEnchantmentGlintOverride())));
             }
             if (meta.hasLore()) {
-                lines.add("&fLore:");
+                lines.add(configs.message("debug-lore"));
                 for (String lore : meta.getLore()) {
                     lines.add("  &7" + lore);
                 }
@@ -185,30 +185,35 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
 
         ToolType toolType = factory.getToolType(item);
         if (toolType != null) {
-            lines.add("&f插件物品: &e" + toolType.name().toLowerCase(Locale.ROOT) + " &7(" + factory.getToolId(item) + ")");
+            lines.add(configs.message("debug-plugin-item")
+                    .replace("{type}", toolType.name().toLowerCase(Locale.ROOT))
+                    .replace("{id}", factory.getToolId(item)));
             Map<String, String> values = factory.readValues(item);
             if (!values.isEmpty()) {
-                lines.add("&f随机数:");
+                lines.add(configs.message("debug-random-values"));
                 values.forEach((name, value) -> lines.add("  &7" + name + " = &e" + value));
             }
         }
 
         SocketData socketData = factory.readSocketData(item);
-        lines.add("&f孔数: &e" + socketData.holes() + " &7/ 已镶嵌: &e" + socketData.gems().size());
+        lines.add(configs.message("debug-holes")
+                .replace("{holes}", String.valueOf(socketData.holes()))
+                .replace("{gems}", String.valueOf(socketData.gems().size())));
         if (!socketData.gems().isEmpty()) {
-            lines.add("&f已镶嵌宝石:");
+            lines.add(configs.message("debug-socketed-gems"));
             for (SocketedGem gem : socketData.gems()) {
                 lines.add("  &7- &e" + gem.id() + " &7(" + gem.instanceId().substring(0, 8) + ")");
                 gem.values().forEach((name, value) -> lines.add("      &7" + name + " = &e" + value));
                 for (String line : gem.lines()) {
-                    lines.add("      &7注入: " + line);
+                    lines.add("      " + configs.message("debug-injected-line").replace("{line}", line));
                 }
             }
         }
 
         PersistentDataContainerView pdc = item.getPersistentDataContainer();
-        lines.add("&f组件键: " + pdc.getKeys().stream().map(key -> key.getKey()).toList());
-        lines.add("&7===== Debug End =====");
+        lines.add(configs.message("debug-component-keys")
+                .replace("{keys}", pdc.getKeys().stream().map(key -> key.getKey()).toList().toString()));
+        lines.add(configs.message("debug-end"));
         for (String line : lines) {
             sender.sendMessage(ItemFactory.colorize(line));
         }
@@ -233,7 +238,10 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             case PUNCHER -> new ArrayList<>(configs.getPunchers().keySet());
             case REMOVER -> new ArrayList<>(configs.getRemovers().keySet());
         };
-        send(sender, "&a" + type.name().toLowerCase(Locale.ROOT) + " (" + ids.size() + "): &f" + String.join(", ", ids));
+        send(sender, configs.message("list-result")
+                .replace("{type}", type.name().toLowerCase(Locale.ROOT))
+                .replace("{count}", String.valueOf(ids.size()))
+                .replace("{ids}", String.join(", ", ids)));
         return true;
     }
 
@@ -261,7 +269,9 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 ok++;
             } catch (Exception e) {
                 fail++;
-                lines.add("&c宝石 [&f" + definition.getId() + "&c] 失败: " + e.getMessage());
+                lines.add(configs.message("selftest-gem-fail")
+                        .replace("{id}", definition.getId())
+                        .replace("{error}", e.getMessage()));
             }
         }
         for (PuncherDefinition definition : configs.getPunchers().values()) {
@@ -273,7 +283,9 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 ok++;
             } catch (Exception e) {
                 fail++;
-                lines.add("&c打孔器 [&f" + definition.getId() + "&c] 失败: " + e.getMessage());
+                lines.add(configs.message("selftest-puncher-fail")
+                        .replace("{id}", definition.getId())
+                        .replace("{error}", e.getMessage()));
             }
         }
         for (RemoverDefinition definition : configs.getRemovers().values()) {
@@ -285,7 +297,9 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 ok++;
             } catch (Exception e) {
                 fail++;
-                lines.add("&c拆卸器 [&f" + definition.getId() + "&c] 失败: " + e.getMessage());
+                lines.add(configs.message("selftest-remover-fail")
+                        .replace("{id}", definition.getId())
+                        .replace("{error}", e.getMessage()));
             }
         }
 
@@ -315,7 +329,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             ok++;
         } catch (Exception e) {
             fail++;
-            lines.add("&c镶嵌数据读写失败: " + e.getMessage());
+            lines.add(configs.message("selftest-socket-data-fail").replace("{error}", e.getMessage()));
         }
 
         try {
@@ -409,7 +423,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             ok++;
         } catch (Exception e) {
             fail++;
-            lines.add("&c属性面板合并失败: " + e.getMessage());
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", e.getMessage()));
         }
 
         try {
@@ -439,11 +453,13 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             ok++;
         } catch (Exception e) {
             fail++;
-            lines.add("&c打孔 lore 更新失败: " + e.getMessage());
+            lines.add(configs.message("selftest-punch-lore-fail").replace("{error}", e.getMessage()));
         }
 
-        sender.sendMessage(ItemFactory.colorize("&7===== MosaicGem Selftest ====="));
-        sender.sendMessage(ItemFactory.colorize("&a通过: &f" + ok + " &7/ 失败: &f" + fail));
+        sender.sendMessage(ItemFactory.colorize(configs.message("selftest-title")));
+        sender.sendMessage(ItemFactory.colorize(configs.message("selftest-pass-fail")
+                .replace("{ok}", String.valueOf(ok))
+                .replace("{fail}", String.valueOf(fail))));
         if (fail > 0) {
             for (String line : lines) {
                 sender.sendMessage(ItemFactory.colorize(line));
@@ -519,13 +535,12 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendHelp(CommandSender sender) {
-        sender.sendMessage(ItemFactory.colorize(
-                "&8[&6MosaicGem&8] &f指令帮助\n"
-                        + "&7/mosaicgem reload &8- &f重载配置\n"
-                        + "&7/mosaicgem give <gem|puncher|remover> <id> [数量] [玩家] &8- &f给予物品\n"
-                        + "&7/mosaicgem debug [玩家] &8- &f查看物品调试信息\n"
-                        + "&7/mosaicgem list <gem|puncher|remover> &8- &f查看已配置物品\n"
-                        + "&7/mosaicgem selftest &8- &f自检配置与数据读写"));
+        send(sender, configs.message("help-title") + "\n"
+                + configs.message("help-reload") + "\n"
+                + configs.message("help-give") + "\n"
+                + configs.message("help-debug") + "\n"
+                + configs.message("help-list") + "\n"
+                + configs.message("help-selftest"));
     }
 
     private void send(CommandSender sender, String message) {

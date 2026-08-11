@@ -1,4 +1,6 @@
 # 玩家消息（策划可自行修改文案；{xxx} 为变量占位符）
+# 语言文件命名规则：messages_<语言>.yml，由 config.yml 的 settings.language 选择
+# 内置语言：zh_cn（简体中文）、en_us（English）
 # 所有未成功的交互都会提示玩家，各消息对应的拦截场景如下：
 #   punch-max-global            打孔：物品总孔数已达到全局上限（即使该打孔器的来源上限未满）
 #   punch-max-source            打孔：该打孔器类型给此物品贡献的孔数已达到自身上限
@@ -41,3 +43,34 @@ messages:
   tool-config-missing: '&c该工具在配置中不存在，请联系管理员！'
   invalid-combination: '&c工具与目标物品的组合无效！'
   inventory-full: '&e背包已满，返还物品已掉落在地上。'
+  help-title: '&f指令帮助'
+  help-reload: '&7/mosaicgem reload &8- &f重载配置'
+  help-give: '&7/mosaicgem give <gem|puncher|remover> <id> [数量] [玩家] &8- &f给予物品'
+  help-debug: '&7/mosaicgem debug [玩家] &8- &f查看物品调试信息'
+  help-list: '&7/mosaicgem list <gem|puncher|remover> &8- &f查看已配置物品'
+  help-selftest: '&7/mosaicgem selftest &8- &f自检配置与数据读写'
+  debug-no-item: '&c{player} 主手没有物品'
+  debug-title: '&7===== MosaicGem Debug ====='
+  debug-holder: '&f持有者: &e{player}'
+  debug-item: '&f物品: &e{item}'
+  debug-amount: '&f数量: &e{amount}'
+  debug-display-name: '&f显示名: &e{name}'
+  debug-custom-model-data: '&fCustomModelData: &e{value}'
+  debug-enchant-glint: '&f附魔光效: &e{value}'
+  debug-lore: '&fLore:'
+  debug-plugin-item: '&f插件物品: &e{type} &7({id})'
+  debug-random-values: '&f随机数:'
+  debug-holes: '&f孔数: &e{holes} &7/ 已镶嵌: &e{gems}'
+  debug-socketed-gems: '&f已镶嵌宝石:'
+  debug-injected-line: '&7注入: {line}'
+  debug-component-keys: '&f组件键: {keys}'
+  debug-end: '&7===== Debug End ====='
+  list-result: '&a{type} ({count}): &f{ids}'
+  selftest-title: '&7===== MosaicGem Selftest ====='
+  selftest-pass-fail: '&a通过: &f{ok} &7/ 失败: &f{fail}'
+  selftest-gem-fail: '&c宝石 [&f{id}&c] 失败: {error}'
+  selftest-puncher-fail: '&c打孔器 [&f{id}&c] 失败: {error}'
+  selftest-remover-fail: '&c拆卸器 [&f{id}&c] 失败: {error}'
+  selftest-socket-data-fail: '&c镶嵌数据读写失败: {error}'
+  selftest-attribute-merge-fail: '&c属性面板合并失败: {error}'
+  selftest-punch-lore-fail: '&c打孔 lore 更新失败: {error}'

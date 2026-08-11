@@ -10,8 +10,14 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.util.List;
 
 public final class MosaicGemPlugin extends JavaPlugin {
+
+    private static final List<String> MESSAGE_FILES = List.of(
+            "messages_zh_cn.yml",
+            "messages_en_us.yml"
+    );
 
     private static MosaicGemPlugin instance;
 
@@ -30,7 +36,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
         instance = this;
 
         saveDefaultConfig();
-        saveResourceIfAbsent("messages.yml");
+        saveMessageFiles();
         saveResourceIfAbsent("gems.yml");
         saveResourceIfAbsent("punchers.yml");
         saveResourceIfAbsent("removers.yml");
@@ -50,7 +56,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
             pluginCommand.setTabCompleter(command);
         }
 
-        getLogger().info("MosaicGem 已启用 (Folia 26.2)");
+        getLogger().info("MosaicGem 已启用 (Folia 26.2)，当前语言: " + configManager.language());
     }
 
     @Override
@@ -61,13 +67,19 @@ public final class MosaicGemPlugin extends JavaPlugin {
     public void reloadConfigs() {
         // 热重载时先补齐缺失的默认配置文件，再重新加载
         saveDefaultConfig();
-        saveResourceIfAbsent("messages.yml");
+        saveMessageFiles();
         saveResourceIfAbsent("gems.yml");
         saveResourceIfAbsent("punchers.yml");
         saveResourceIfAbsent("removers.yml");
         reloadConfig();
         configManager.load();
-        getLogger().info("配置已重载");
+        getLogger().info("配置已重载，当前语言: " + configManager.language());
+    }
+
+    private void saveMessageFiles() {
+        for (String name : MESSAGE_FILES) {
+            saveResourceIfAbsent(name);
+        }
     }
 
     private void saveResourceIfAbsent(String name) {

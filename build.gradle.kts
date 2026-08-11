@@ -14,14 +14,9 @@ dependencies {
     compileOnly("dev.folia:folia-api:26.2.build.3-beta")
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-}
-
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
+    // 使用当前 JDK 编译，但目标字节码保持 Java 25 兼容
     options.release = 25
 }
 

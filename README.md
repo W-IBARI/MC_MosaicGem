@@ -9,7 +9,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 - **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
-- **完整反馈**：所有被拦截或失败的操作都会提示玩家，文案在独立 `messages.yml` 中配置
+- **完整反馈**：所有被拦截或失败的操作都会提示玩家，文案按语言拆分到独立的 `messages_*.yml` 中配置
 - **管理指令**：重载配置、发放物品、调试查看、列表、自检
 - **格式保留**：镶嵌/打孔不会破坏物品原有 lore 的颜色、斜体、加粗等格式
 
@@ -26,7 +26,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 1. 构建插件（见下文「构建」），或使用已发布的 jar
 2. 将 `MosaicGem-*.jar` 放入服务端 `plugins` 目录
 3. 如需属性生效，同时放入 `SX-Item` 与 `SX-Attribute` 的 jar
-4. 启动服务端，插件会自动生成 `config.yml`、`messages.yml`、`gems.yml`、`punchers.yml`、`removers.yml`
+4. 启动服务端，插件会自动生成 `config.yml`、`messages_zh_cn.yml`、`messages_en_us.yml`、`gems.yml`、`punchers.yml`、`removers.yml`
 5. 按需修改配置后执行 `/mosaicgem reload`
 
 > 配置热重载时若发现某个 yml 缺失，会自动从插件内置默认版本补齐，不会覆盖已有文件。
@@ -98,6 +98,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 ```yaml
 settings:
+  language: zh_cn          # 消息语言：zh_cn（简体中文）/ en_us（English）
   max-holes: 6            # 全局孔数硬上限（所有来源孔数之和）
   interactions:
     anvil: true           # 铁砧合成
@@ -149,9 +150,14 @@ attribute-lore:
 
 > 默认模板均带 `&r`（正体）。如需自定义颜色，可直接在模板中加入颜色代码（`&` 或 `§x` 十六进制）。
 
-### messages.yml
+### 多语言消息文件
 
-所有玩家消息在这里配置，`{xxx}` 为占位符：
+所有玩家消息按语言拆分：`config.yml` 的 `settings.language` 决定加载哪个文件（如 `zh_cn` 对应 `messages_zh_cn.yml`），`{xxx}` 为占位符。内置语言：
+
+- `messages_zh_cn.yml`：简体中文
+- `messages_en_us.yml`：English（英文）
+
+语言值不区分大小写，`-` 与 `_` 等价（如 `en-US` 与 `en_us` 均可）。若指定语言的文件不存在，会自动回退到中文文件；旧版 `messages.yml` 在中文语言下仍会被优先读取，用于保留已自定义的文案。
 
 | 消息键 | 场景 |
 | --- | --- |
@@ -170,7 +176,7 @@ attribute-lore:
 | `invalid-combination` | 工具+工具或无效组合 |
 | `inventory-full` | 返还宝石时背包已满 |
 
-另有成功/指令类消息：`punch-success`、`socket-success`、`remove-success`、`reload-success`、`give-*`、`player-not-found`、`no-permission` 等，完整键值见文件内注释。
+另有成功/指令/帮助/调试/自检类消息：`punch-success`、`socket-success`、`remove-success`、`reload-success`、`give-*`、`player-not-found`、`no-permission`、`help-*`、`debug-*`、`selftest-*` 等，完整键值见文件内注释。
 
 ### gems.yml
 
