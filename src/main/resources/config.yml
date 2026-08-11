@@ -11,50 +11,6 @@ settings:
     # 拖拽工具到目标物品上
     drag: true
 
-# 玩家消息（策划可自行修改文案；{xxx} 为变量占位符）
-# 所有未成功的交互都会提示玩家，各消息对应的拦截场景如下：
-#   punch-max-global            打孔：物品总孔数已达到全局上限（即使该打孔器的来源上限未满）
-#   punch-max-source            打孔：该打孔器类型给此物品贡献的孔数已达到自身上限
-#   punch-fail                  打孔：成功率判定失败（工具已消耗，物品与已镶嵌宝石不受影响）
-#   socket-no-hole              镶嵌：物品还没有任何孔位（未打孔）
-#   socket-full                 镶嵌：物品孔位已满
-#   socket-repeat-limit         镶嵌：同一种宝石已达到可重复镶嵌次数上限
-#   socket-bufftype-unsupported 镶嵌：宝石的 buffType 不受支持（当前仅支持 sx_attribute）
-#   remove-empty                拆卸：物品上没有已镶嵌的宝石
-#   remove-fail                 拆卸：成功率判定失败（工具已消耗）
-#   target-invalid              操作：目标物品类型/材质不符合工具限制
-#   interaction-disabled        操作：该交互方式（铁砧/合成/拖拽）已在配置中禁用
-#   tool-config-missing         拖拽：工具在配置中不存在（配置被删改后常见）
-#   invalid-combination         拖拽：两个物品都是工具，或组合无效
-#   inventory-full              返还宝石时背包已满，宝石掉落在脚边
-messages:
-  prefix: '&8[&6MosaicGem&8] '
-  no-permission: '&c你没有权限执行该指令！'
-  reload-success: '&a配置已重载。'
-  give-usage: '&c用法: /mosaicgem give <gem|puncher|remover> <id> [数量] [玩家]'
-  give-not-found: '&c未找到对应的{type}配置: &f{id}'
-  give-success: '&a已给予 &f{player} &a{amount} 个 &f{id}'
-  player-not-found: '&c找不到玩家: &f{player}'
-  debug-usage: '&c用法: /mosaicgem debug [玩家]'
-  list-usage: '&c用法: /mosaicgem list <gem|puncher|remover>'
-  punch-success: '&a打孔成功！当前孔数: &f{holes}&a/&f{max}'
-  punch-max-global: '&c打孔失败：该物品的孔数已达到全局上限（{max}）！'
-  punch-max-source: '&c打孔失败：该打孔器类型已达到来源上限（{max}）！'
-  punch-fail: '&c打孔失败，打孔器已消耗！'
-  socket-success: '&a宝石镶嵌成功！'
-  socket-no-hole: '&c镶嵌失败：该物品还没有孔位，请先打孔！'
-  socket-full: '&c镶嵌失败：该物品的孔位已满！'
-  socket-repeat-limit: '&c该宝石已达到可重复镶嵌次数上限！'
-  socket-bufftype-unsupported: '&c镶嵌失败：该宝石的属性类型不受支持，无法镶嵌！'
-  remove-success: '&a宝石拆卸成功，宝石已返还。'
-  remove-fail: '&c拆卸失败，拆卸器已消耗！'
-  remove-empty: '&c拆卸失败：该物品没有已镶嵌的宝石！'
-  target-invalid: '&c该物品不能进行此操作！'
-  interaction-disabled: '&c该交互方式已被禁用！'
-  tool-config-missing: '&c该工具在配置中不存在，请联系管理员！'
-  invalid-combination: '&c工具与目标物品的组合无效！'
-  inventory-full: '&e背包已满，返还物品已掉落在地上。'
-
 # 装备上的镶嵌信息 lore（打孔/镶嵌/拆卸成功后自动更新）
 # 占位符：
 #   {holes}      已经镶嵌的孔洞数（孔内宝石数）
@@ -69,12 +25,12 @@ socket-lore:
   enabled: true
   lines:
     - ''
-    - '&f[ &6镶嵌信息 &f]'
-    - '&7孔位: &f{holes}&7/&f{max_holes}'
+    - '&r&f[ &6镶嵌信息 &f]'
+    - '&r&7孔位: &f{holes}&7/&f{max_holes}'
   gem-lines:
-    - '&7宝石{index}: &f{gem}'
-    - '&7  {value_lines}'
-  empty-line: '&7暂无宝石'
+    - '&r&7宝石{index}: &f{gem}'
+    - '&r&7  {value_lines}'
+  empty-line: '&r&7暂无宝石'
 
 # 属性面板合并显示：镶嵌后把宝石属性合并进物品原有的属性行
 # 例：物品原行 '攻击力：13.90' + 宝石 20 -> '攻击力：33.90（+20）'
@@ -88,6 +44,6 @@ attribute-lore:
   names: []
   # 宝石属性在物品上没有对应行时，追加的新属性行模版
   # 注意：如果服务端 lore 是传统字符串，<#XXXXXX> 会原样显示，建议改用 §x 十六进制或纯颜色代码
-  new-line: '&f{name}：&e{value}'
+  new-line: '&r&f{name}：&e{value}'
   # 加成标注格式（跟在数值后）
-  bonus-format: '（+{bonus}）'
+  bonus-format: '&r（+{bonus}）'

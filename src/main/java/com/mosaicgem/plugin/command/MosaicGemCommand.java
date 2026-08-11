@@ -371,6 +371,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             List<String> loreAfterSecond = sword.getItemMeta().getLore();
             long attackLines = loreAfterSecond.stream()
                     .filter(line -> line.contains(AttributeLoreService.MARKER)
+                            && !line.startsWith(AttributeLoreService.MARKER)
                             && ItemFactory.stripLoreText(line).startsWith("攻击力"))
                     .count();
             long holeLines = loreAfterSecond.stream().filter(line -> line.contains("孔位")).count();

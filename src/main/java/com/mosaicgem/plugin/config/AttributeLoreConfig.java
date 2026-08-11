@@ -19,8 +19,8 @@ public record AttributeLoreConfig(
         String bonusFormat
 ) {
 
-    private static final String DEFAULT_NEW_LINE = "&f{name}：&e{value}";
-    private static final String DEFAULT_BONUS_FORMAT = "（+{bonus}）";
+    private static final String DEFAULT_NEW_LINE = "&r&f{name}：&e{value}";
+    private static final String DEFAULT_BONUS_FORMAT = "&r（+{bonus}）";
 
     public static AttributeLoreConfig from(ConfigurationSection section) {
         if (section == null) {

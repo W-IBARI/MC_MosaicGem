@@ -63,7 +63,7 @@ public class AttributeLoreService {
             lore.addAll(item.getItemMeta().getLore());
         }
         // 镶嵌信息区块是纯展示行（行首带 SOCKET_MARKER），合并属性前先清掉，避免被误当成属性行
-        lore.removeIf(line -> line.contains(ItemFactory.SOCKET_MARKER));
+        lore.removeIf(line -> line.startsWith(ItemFactory.SOCKET_MARKER));
 
         // 1. 还原/清理旧的合并行
         restoreMarkedLines(lore, baseLines, knownNames);

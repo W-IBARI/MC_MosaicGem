@@ -18,6 +18,7 @@ public class ConfigManager {
     private final MosaicGemPlugin plugin;
 
     private FileConfiguration config;
+    private FileConfiguration messages;
 
     private final Map<String, GemDefinition> gems = new LinkedHashMap<>();
     private final Map<String, PuncherDefinition> punchers = new LinkedHashMap<>();
@@ -29,6 +30,7 @@ public class ConfigManager {
 
     public void load() {
         config = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "config.yml"));
+        messages = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "messages.yml"));
         gems.clear();
         punchers.clear();
         removers.clear();
@@ -108,11 +110,11 @@ public class ConfigManager {
     }
 
     public String prefix() {
-        return config.getString("messages.prefix", "&8[&6MosaicGem&8] ");
+        return messages.getString("messages.prefix", "&8[&6MosaicGem&8] ");
     }
 
     public String message(String key) {
-        return config.getString("messages." + key, key);
+        return messages.getString("messages." + key, key);
     }
 
     public SocketLoreTemplate socketLore() {

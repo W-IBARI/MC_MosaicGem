@@ -33,11 +33,11 @@ import java.util.stream.Collectors;
  */
 public class ItemFactory {
 
-    /** 属性合并行标记：SX 解析 §X 之前的内容，标记后的加成文字不影响属性计算 */
-    public static final String LORE_MARKER = "\u00A7X\u200B";
+    /** 属性合并行标记（数值后）：SX 解析 §X 之前的内容，§X 为无效代码客户端静默忽略 */
+    public static final String LORE_MARKER = "\u00A7X";
 
     /** 镶嵌信息行标记（放在行首）：SX 整行忽略，玩家不可见，用于按标记移除 */
-    public static final String SOCKET_MARKER = "\u00A7X\u200C";
+    public static final String SOCKET_MARKER = "\u00A7X";
 
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
@@ -265,14 +265,14 @@ public class ItemFactory {
     }
 
     /**
-     * 移除所有包含指定标记的 lore 行。
+     * 移除所有以镶嵌信息标记开头的 lore 行。
      */
-    public void removeMarkedLines(ItemStack item, String marker) {
+    public void removeSocketLines(ItemStack item) {
         if (item.getItemMeta() == null || !item.getItemMeta().hasLore()) {
             return;
         }
         List<String> lore = new ArrayList<>(item.getItemMeta().getLore());
-        if (lore.removeIf(line -> line.contains(marker))) {
+        if (lore.removeIf(line -> line.startsWith(SOCKET_MARKER))) {
             setLore(item, lore);
         }
     }
@@ -328,8 +328,8 @@ public class ItemFactory {
      * 更新装备上的镶嵌信息 lore：先移除旧信息，再按模版写入新信息。
      */
     public void applySocketLore(ItemStack item, SocketData data, SocketLoreTemplate template) {
-        // 移除旧的镶嵌信息：新格式按标记移除，旧格式按 PDC 记录的原行移除（迁移）
-        removeMarkedLines(item, SOCKET_MARKER);
+        // 移除旧的镶嵌信息：新格式按行首标记移除，旧格式按 PDC 记录的原行移除（迁移）
+        removeSocketLines(item);
         List<String> oldLines = readSocketLines(item);
         if (!oldLines.isEmpty()) {
             removeLoreLines(item, oldLines);

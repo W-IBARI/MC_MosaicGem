@@ -21,18 +21,18 @@ public record SocketLoreTemplate(
 
     private static final List<String> DEFAULT_LINES = List.of(
             "",
-            "&f[ &6镶嵌信息 &f]",
-            "&7孔位: &f{holes}&7/&f{max_holes}"
+            "&r&f[ &6镶嵌信息 &f]",
+            "&r&7孔位: &f{holes}&7/&f{max_holes}"
     );
 
     private static final List<String> DEFAULT_GEM_LINES = List.of(
-            "&7宝石{index}: &f{gem}",
-            "&7  {value_lines}"
+            "&r&7宝石{index}: &f{gem}",
+            "&r&7  {value_lines}"
     );
 
     public static SocketLoreTemplate from(ConfigurationSection section) {
         if (section == null) {
-            return new SocketLoreTemplate(true, DEFAULT_LINES, DEFAULT_GEM_LINES, "&7暂无宝石");
+            return new SocketLoreTemplate(true, DEFAULT_LINES, DEFAULT_GEM_LINES, "&r&7暂无宝石");
         }
         List<String> lines = section.getStringList("lines");
         if (lines.isEmpty()) {
@@ -46,7 +46,7 @@ public record SocketLoreTemplate(
                 section.getBoolean("enabled", true),
                 lines,
                 gemLines,
-                section.getString("empty-line", "&7暂无宝石")
+                section.getString("empty-line", "&r&7暂无宝石")
         );
     }
 }
