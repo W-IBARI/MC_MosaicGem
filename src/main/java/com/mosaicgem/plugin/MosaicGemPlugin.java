@@ -58,6 +58,11 @@ public final class MosaicGemPlugin extends JavaPlugin {
     }
 
     public void reloadConfigs() {
+        // 热重载时先补齐缺失的默认配置文件，再重新加载
+        saveDefaultConfig();
+        saveResourceIfAbsent("gems.yml");
+        saveResourceIfAbsent("punchers.yml");
+        saveResourceIfAbsent("removers.yml");
         reloadConfig();
         configManager.load();
         getLogger().info("配置已重载");
