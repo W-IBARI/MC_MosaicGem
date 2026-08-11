@@ -51,7 +51,7 @@ public class AttributeLoreService {
             return;
         }
 
-        Map<String, Double> bonuses = collectBonuses(gems);
+        Map<String, Bonus> bonuses = collectBonuses(gems);
         Map<String, String> baseLines = new LinkedHashMap<>(factory.readBaseLines(item));
         Set<String> knownNames = new LinkedHashSet<>();
         knownNames.addAll(baseLines.keySet());
@@ -62,6 +62,8 @@ public class AttributeLoreService {
         if (item.getItemMeta() != null && item.getItemMeta().hasLore()) {
             lore.addAll(item.getItemMeta().getLore());
         }
+        // 镶嵌信息区块是纯展示行（行首带 SOCKET_MARKER），合并属性前先清掉，避免被误当成属性行
+        lore.removeIf(line -> line.contains(ItemFactory.SOCKET_MARKER));
 
         // 1. 还原/清理旧的合并行
         restoreMarkedLines(lore, baseLines, knownNames);
@@ -82,8 +84,8 @@ public class AttributeLoreService {
     // 属性识别与加成汇总
     // ------------------------------------------------------------------
 
-    private Map<String, Double> collectBonuses(List<SocketedGem> gems) {
-        Map<String, Double> bonuses = new LinkedHashMap<>();
+    private Map<String, Bonus> collectBonuses(List<SocketedGem> gems) {
+        Map<String, Bonus> bonuses = new LinkedHashMap<>();
         for (SocketedGem gem : gems) {
             GemDefinition definition = configs.getGem(gem.id());
             if (definition == null) {
@@ -99,7 +101,7 @@ public class AttributeLoreService {
                 if (parsed == null) {
                     continue;
                 }
-                bonuses.merge(name, parsed.value(), Double::sum);
+                bonuses.merge(name, new Bonus(parsed.value(), parsed.decimals(), 1), Bonus::merge);
             }
         }
         return bonuses;
@@ -135,15 +137,15 @@ public class AttributeLoreService {
         }
     }
 
-    private void applyBonuses(List<String> lore, Map<String, String> baseLines, Map<String, Double> bonuses, AttributeLoreConfig cfg) {
+    private void applyBonuses(List<String> lore, Map<String, String> baseLines, Map<String, Bonus> bonuses, AttributeLoreConfig cfg) {
         if (bonuses.isEmpty()) {
             return;
         }
         List<String> append = new ArrayList<>();
-        for (Map.Entry<String, Double> entry : bonuses.entrySet()) {
+        for (Map.Entry<String, Bonus> entry : bonuses.entrySet()) {
             String name = entry.getKey();
-            double bonus = entry.getValue();
-            if (bonus <= 0) {
+            Bonus bonus = entry.getValue();
+            if (bonus.value() <= 0) {
                 continue;
             }
 
@@ -157,7 +159,7 @@ public class AttributeLoreService {
                     lore.set(index, buildMerged(original, parsed, bonus, cfg.bonusFormat()));
                 }
             } else {
-                String valueText = formatNumber(bonus, 2);
+                String valueText = formatNumber(bonus.value(), 2);
                 String line = cfg.newLine()
                         .replace("{name}", name)
                         .replace("{value}", valueText)
@@ -169,15 +171,16 @@ public class AttributeLoreService {
         lore.addAll(append);
     }
 
-    private String buildMerged(String original, ParsedNumber parsed, double bonus, String bonusFormat) {
+    private String buildMerged(String original, ParsedNumber parsed, Bonus bonus, String bonusFormat) {
         String unit = parsed.unit();
+        double bonusValue = bonus.value();
         StringBuilder builder = new StringBuilder(parsed.prefix());
         if (parsed.hasRange()) {
-            builder.append(formatNumber(parsed.value() + bonus, parsed.decimals()))
+            builder.append(formatNumber(parsed.value() + bonusValue, parsed.decimals()))
                     .append('-')
-                    .append(formatNumber(parsed.secondValue() + bonus, parsed.decimals()));
+                    .append(formatNumber(parsed.secondValue() + bonusValue, parsed.decimals()));
         } else {
-            builder.append(formatNumber(parsed.value() + bonus, parsed.decimals()));
+            builder.append(formatNumber(parsed.value() + bonusValue, parsed.decimals()));
         }
         builder.append(unit);
         builder.append(MARKER);
@@ -251,8 +254,14 @@ public class AttributeLoreService {
         return String.format(Locale.ROOT, "%." + decimals + "f", value);
     }
 
-    private String formatBonus(double bonus) {
-        return BigDecimal.valueOf(bonus).stripTrailingZeros().toPlainString();
+    /**
+     * 单颗宝石生效时去掉多余小数零；多颗宝石生效时取小数位最多的宝石的位数。
+     */
+    private String formatBonus(Bonus bonus) {
+        if (bonus.count() <= 1) {
+            return BigDecimal.valueOf(bonus.value()).stripTrailingZeros().toPlainString();
+        }
+        return String.format(Locale.ROOT, "%." + bonus.decimals() + "f", bonus.value());
     }
 
     private record ParsedNumber(
@@ -263,5 +272,16 @@ public class AttributeLoreService {
             String prefix,
             String unit
     ) {
+    }
+
+    private record Bonus(double value, int decimals, int count) {
+
+        private static Bonus merge(Bonus first, Bonus second) {
+            return new Bonus(
+                    first.value() + second.value(),
+                    Math.max(first.decimals(), second.decimals()),
+                    first.count() + second.count()
+            );
+        }
     }
 }

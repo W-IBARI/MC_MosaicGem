@@ -36,6 +36,9 @@ public class ItemFactory {
     /** 属性合并行标记：SX 解析 §X 之前的内容，标记后的加成文字不影响属性计算 */
     public static final String LORE_MARKER = "\u00A7X\u200B";
 
+    /** 镶嵌信息行标记（放在行首）：SX 整行忽略，玩家不可见，用于按标记移除 */
+    public static final String SOCKET_MARKER = "\u00A7X\u200C";
+
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
 
@@ -262,6 +265,19 @@ public class ItemFactory {
     }
 
     /**
+     * 移除所有包含指定标记的 lore 行。
+     */
+    public void removeMarkedLines(ItemStack item, String marker) {
+        if (item.getItemMeta() == null || !item.getItemMeta().hasLore()) {
+            return;
+        }
+        List<String> lore = new ArrayList<>(item.getItemMeta().getLore());
+        if (lore.removeIf(line -> line.contains(marker))) {
+            setLore(item, lore);
+        }
+    }
+
+    /**
      * 写入 lore：普通行按传统 § 代码解析；包含合并标记的行，标记部分作为字面文本写入，
      * 避免 Paper 的传统 setLore 把 §X 吞掉。
      */
@@ -281,15 +297,16 @@ public class ItemFactory {
 
     private static Component toComponent(String line) {
         String colored = colorize(line);
-        int markerIndex = colored.indexOf(LORE_MARKER);
+        int markerIndex = colored.indexOf("\u00A7X");
         if (markerIndex < 0) {
-            return LegacyComponentSerializer.legacySection().deserialize(colored);
+            // 原样保留原始行文本（如行首的 §r、§x 十六进制色），
+            // 避免 legacy 解析后行首 §r 被序列化丢弃导致格式回退
+            return Component.text(colored);
         }
-        Component prefix = LegacyComponentSerializer.legacySection().deserialize(colored.substring(0, markerIndex));
-        Component suffix = LegacyComponentSerializer.legacySection().deserialize(colored.substring(markerIndex + LORE_MARKER.length()));
-        // 加成文字默认继承数值行风格；配置里带了颜色代码时以配置为准
-        Component styledSuffix = suffix.style(style -> style.merge(prefix.style()));
-        return prefix.append(Component.text(LORE_MARKER)).append(styledSuffix);
+        // 标记前的原始文本同样原样保留
+        Component prefix = Component.text(colored.substring(0, markerIndex));
+        Component suffix = LegacyComponentSerializer.legacySection().deserialize(colored.substring(markerIndex + 2));
+        return prefix.append(Component.text(colored.substring(markerIndex, markerIndex + 2))).append(suffix);
     }
 
     // ------------------------------------------------------------------
@@ -311,6 +328,8 @@ public class ItemFactory {
      * 更新装备上的镶嵌信息 lore：先移除旧信息，再按模版写入新信息。
      */
     public void applySocketLore(ItemStack item, SocketData data, SocketLoreTemplate template) {
+        // 移除旧的镶嵌信息：新格式按标记移除，旧格式按 PDC 记录的原行移除（迁移）
+        removeMarkedLines(item, SOCKET_MARKER);
         List<String> oldLines = readSocketLines(item);
         if (!oldLines.isEmpty()) {
             removeLoreLines(item, oldLines);
@@ -323,7 +342,7 @@ public class ItemFactory {
             String max = String.valueOf(data.holes());
             String gemCount = String.valueOf(data.gems().size());
             for (String line : template.lines()) {
-                newLines.add(colorize(line
+                newLines.add(SOCKET_MARKER + colorize(line
                         .replace("{holes}", holes)
                         .replace("{max_holes}", max)
                         .replace("{gem_count}", gemCount)));
@@ -344,16 +363,16 @@ public class ItemFactory {
                             continue;
                         }
                         for (String value : valueLines) {
-                            newLines.add(colorize(base.replace("{value_lines}", value)));
+                            newLines.add(SOCKET_MARKER + colorize(base.replace("{value_lines}", value)));
                         }
                     } else {
-                        newLines.add(colorize(base));
+                        newLines.add(SOCKET_MARKER + colorize(base));
                     }
                 }
                 index++;
             }
             if (data.gems().isEmpty() && template.emptyLine() != null && !template.emptyLine().isEmpty()) {
-                newLines.add(colorize(template.emptyLine()
+                newLines.add(SOCKET_MARKER + colorize(template.emptyLine()
                         .replace("{holes}", holes)
                         .replace("{max_holes}", max)));
             }
@@ -448,6 +467,7 @@ public class ItemFactory {
         }
         String stripped = line.replaceAll("<#[0-9a-fA-F]{6}>", "");
         stripped = stripped.replaceAll("\u00A7.", "");
+        stripped = stripped.replace("\u200B", "").replace("\u200C", "");
         return stripped.trim();
     }
 

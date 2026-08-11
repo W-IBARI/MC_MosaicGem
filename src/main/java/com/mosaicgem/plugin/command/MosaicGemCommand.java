@@ -13,6 +13,7 @@ import com.mosaicgem.plugin.model.ToolType;
 import com.mosaicgem.plugin.service.AttributeLoreService;
 import com.mosaicgem.plugin.util.ItemFactory;
 import io.papermc.paper.persistence.PersistentDataContainerView;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -317,10 +318,13 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
 
         try {
             ItemStack sword = new ItemStack(Material.IRON_SWORD);
-            sword.editMeta(meta -> meta.setLore(List.of(
-                    "\u00A7o攻击力：\u00A7x\u00A7F\u00A7F\u00A75\u00A75\u00A75\u00A7513.90",
-                    "\u00A7o斜体说明",
-                    "\u00A7l加粗说明"
+            // 模拟其他插件以组件字面文本写入 lore（§r 是字面字符，由客户端解释）
+            sword.editMeta(meta -> meta.lore(List.of(
+                    Component.text("\u00A7r<#AAAAAA>主手装备"),
+                    Component.text("\u00A7r<#FFAA00>攻击力：<#FF5555>13.90"),
+                    Component.text("\u00A7r<#FFAA00>攻击速度：<#FFFF55>1.6"),
+                    Component.text("\u00A7o斜体说明"),
+                    Component.text("\u00A7l加粗说明")
             )));
             Map<String, String> gemValues = new LinkedHashMap<>();
             gemValues.put("random_value", "20.00");
@@ -331,31 +335,94 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
 
             AttributeLoreService attributeLoreService = new AttributeLoreService(configs, factory);
             attributeLoreService.update(sword, List.of(gem));
+            factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem)), configs.socketLore());
             java.util.function.Function<String, String> escape = s -> s.replace("\u00A7", "\\u00A7").replace("\u200B", "\\u200B");
             List<String> resultLore = sword.getItemMeta().getLore();
-            String mergedLine = resultLore.get(0);
+            String mergedLine = resultLore.get(1);
             boolean hasMarker = mergedLine.contains(AttributeLoreService.MARKER);
             boolean hasSectionX = mergedLine.contains("\u00A7X");
             boolean hasZw = mergedLine.contains("\u200B");
-            boolean italicAttribute = mergedLine.contains("\u00A7o");
-            boolean italicOther = resultLore.get(1).contains("\u00A7o");
-            boolean boldOther = resultLore.get(2).contains("\u00A7l");
+            boolean resetMainHand = resultLore.get(0).contains("\u00A7r");
+            boolean resetAttribute = mergedLine.contains("\u00A7r");
+            boolean resetAttackSpeed = resultLore.get(2).contains("\u00A7r");
+            boolean italicOther = resultLore.get(3).contains("\u00A7o");
+            boolean boldOther = resultLore.get(4).contains("\u00A7l");
             if (!mergedLine.contains("33.90") || !mergedLine.contains("（+20") || !hasMarker
-                    || !italicAttribute || !italicOther || !boldOther) {
+                    || !resetMainHand || !resetAttribute || !resetAttackSpeed || !italicOther || !boldOther) {
                 throw new IllegalStateException("属性合并失败: marker=" + hasMarker + " sectionX=" + hasSectionX
-                        + " zw=" + hasZw + " italicAttr=" + italicAttribute + " italicOther=" + italicOther
+                        + " zw=" + hasZw + " resetMainHand=" + resetMainHand + " resetAttribute=" + resetAttribute
+                        + " resetAttackSpeed=" + resetAttackSpeed + " italicOther=" + italicOther
                         + " boldOther=" + boldOther + " lore=" + resultLore.stream().map(escape).toList());
             }
             // 再次更新（模拟拆卸重算）应还原后重新合并，结果稳定
             attributeLoreService.update(sword, List.of(gem));
-            String mergedLine2 = sword.getItemMeta().getLore().get(0);
+            factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem)), configs.socketLore());
+            String mergedLine2 = sword.getItemMeta().getLore().get(1);
             if (!mergedLine2.contains("33.90") || !mergedLine2.contains("（+20")) {
                 throw new IllegalStateException("属性重复合并异常: " + escape.apply(mergedLine2));
+            }
+
+            // 第二颗宝石：应更新原属性行而不是新增一行，括号取小数位最多的宝石位数
+            Map<String, String> gemValues2 = new LinkedHashMap<>();
+            gemValues2.put("random_value", "20.00");
+            SocketedGem gem2 = new SocketedGem("测试宝石", "test-uuid-merge-2", gemValues2, List.of());
+            attributeLoreService.update(sword, List.of(gem, gem2));
+            factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem, gem2)), configs.socketLore());
+            List<String> loreAfterSecond = sword.getItemMeta().getLore();
+            long attackLines = loreAfterSecond.stream()
+                    .filter(line -> line.contains(AttributeLoreService.MARKER)
+                            && ItemFactory.stripLoreText(line).startsWith("攻击力"))
+                    .count();
+            long holeLines = loreAfterSecond.stream().filter(line -> line.contains("孔位")).count();
+            long gemLines = loreAfterSecond.stream()
+                    .filter(line -> ItemFactory.stripLoreText(line).startsWith("宝石"))
+                    .count();
+            String secondLine = loreAfterSecond.get(1);
+            if (attackLines != 1 || holeLines != 1 || gemLines != 2
+                    || !secondLine.contains("53.90") || !secondLine.contains("（+40.00")) {
+                throw new IllegalStateException("第二颗宝石合并异常: attackLines=" + attackLines
+                        + " holeLines=" + holeLines + " gemLines=" + gemLines
+                        + " lore=" + loreAfterSecond.stream().map(escape).toList());
+            }
+
+            // 取下一颗宝石：应还原为只剩一颗宝石的合并结果
+            attributeLoreService.update(sword, List.of(gem));
+            factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem)), configs.socketLore());
+            String afterRemove = sword.getItemMeta().getLore().get(1);
+            long gemLinesAfterRemove = sword.getItemMeta().getLore().stream()
+                    .filter(line -> ItemFactory.stripLoreText(line).startsWith("宝石"))
+                    .count();
+            if (!afterRemove.contains("33.90") || !afterRemove.contains("（+20") || gemLinesAfterRemove != 1) {
+                throw new IllegalStateException("取下宝石后合并异常: gemLines=" + gemLinesAfterRemove
+                        + " lore=" + sword.getItemMeta().getLore().stream().map(escape).toList());
             }
             ok++;
         } catch (Exception e) {
             fail++;
             lines.add("&c属性面板合并失败: " + e.getMessage());
+        }
+
+        try {
+            // 打孔：镶嵌信息 lore 应原地更新，不产生重复的孔位行
+            ItemStack punchSword = new ItemStack(Material.IRON_SWORD);
+            punchSword.editMeta(meta -> meta.setLore(List.of("&7基础描述")));
+            Map<String, Integer> sources = new LinkedHashMap<>();
+            sources.put("测试打孔器", 1);
+            factory.writeSocketData(punchSword, 1, sources, List.of());
+            factory.applySocketLore(punchSword, new SocketData(1, sources, List.of()), configs.socketLore());
+            sources.put("测试打孔器", 2);
+            factory.writeSocketData(punchSword, 2, sources, List.of());
+            factory.applySocketLore(punchSword, new SocketData(2, sources, List.of()), configs.socketLore());
+            long holeLines = punchSword.getItemMeta().getLore().stream()
+                    .filter(line -> line.contains("孔位"))
+                    .count();
+            if (holeLines != 1) {
+                throw new IllegalStateException("打孔后孔位行重复: " + punchSword.getItemMeta().getLore());
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add("&c打孔 lore 更新失败: " + e.getMessage());
         }
 
         sender.sendMessage(ItemFactory.colorize("&7===== MosaicGem Selftest ====="));
