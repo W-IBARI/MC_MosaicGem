@@ -1,0 +1,64 @@
+# 宝石配置
+# 内部名:
+#   material: 物品材质
+#   isEnchant: 是否附魔（光效）
+#   name: 物品名称
+#   lore: 物品lore（支持 ${随机数名} 占位符）
+#   custom-model-data: 自定义模型序号
+#   targetType: 可镶嵌的物品类型，不填默认全生效
+#   targetMaterial: 可镶嵌的物品id，不填默认全生效
+#   repetitions: 可重复镶嵌次数，不填默认无上限
+#   random: 创建随机数（生成时随机取值，并应用到其他部分）
+#   buffType: 加成生效方式
+#     sx_attribute：SX 属性，属性行写入装备 lore，由 SX-Attribute 读取
+#     vanilla_attribute：原版属性，直接附加到装备的属性修饰符（AttributeModifier）
+#   attribute: 注入的属性行
+#     sx_attribute 格式：'属性名：数值'（如 '攻击力：${random_value}'）
+#     vanilla_attribute 格式：'原版属性id：数值'（如 'minecraft:attack_damage: ${random_value}'）
+#     原版属性 id 的显示名在 messages/<语言>.yml 的 attribute-names 段中配置
+
+SA测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&cSA测试宝石"
+  lore:
+    - ''
+    - '&7可镶嵌的装备类型: &f剑'
+    - ''
+    - '&f[ &c宝石属性 &f]'
+    - '&a▪ 伤害增加：${random_value}'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  random:
+    random_value: '10.00~20.00'
+  buffType: 'sx_attribute'
+  attribute:
+    - '攻击力：${random_value}'
+    - '防御力：${random_value}'
+
+原版测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&b原版测试宝石"
+  lore:
+    - ''
+    - '&7可镶嵌的装备类型: &f剑'
+    - ''
+    - '&f[ &b原版属性 &f]'
+    - '&a▪ 攻击伤害：${random_value}'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  random:
+    random_value: '5.00~10.00'
+  buffType: 'vanilla_attribute'
+  attribute:
+    - 'minecraft:attack_damage: ${random_value}'
+    - 'minecraft:attack_speed: 2'

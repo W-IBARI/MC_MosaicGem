@@ -37,9 +37,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
 
         saveDefaultConfig();
         saveMessageFiles();
-        saveResourceIfAbsent("gems.yml");
-        saveResourceIfAbsent("punchers.yml");
-        saveResourceIfAbsent("removers.yml");
+        saveItemFiles();
 
         configManager = new ConfigManager(this);
         configManager.load();
@@ -68,9 +66,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
         // 热重载时先补齐缺失的默认配置文件，再重新加载
         saveDefaultConfig();
         saveMessageFiles();
-        saveResourceIfAbsent("gems.yml");
-        saveResourceIfAbsent("punchers.yml");
-        saveResourceIfAbsent("removers.yml");
+        saveItemFiles();
         reloadConfig();
         configManager.load();
         getLogger().info("配置已重载，当前语言: " + configManager.language());
@@ -80,6 +76,12 @@ public final class MosaicGemPlugin extends JavaPlugin {
         for (String name : MESSAGE_FILES) {
             saveResourceIfAbsent(name);
         }
+    }
+
+    private void saveItemFiles() {
+        saveResourceIfAbsent("items/gems.yml");
+        saveResourceIfAbsent("items/punchers.yml");
+        saveResourceIfAbsent("items/removers.yml");
     }
 
     private void saveResourceIfAbsent(String name) {

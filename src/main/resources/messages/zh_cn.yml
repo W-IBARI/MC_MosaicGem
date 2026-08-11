@@ -20,7 +20,7 @@ messages:
   prefix: '&8[&6MosaicGem&8] '
   no-permission: '&c你没有权限执行该指令！'
   reload-success: '&a配置已重载。'
-  give-usage: '&c用法: /mosaicgem give <id> [数量] [玩家]（也可 /mosaicgem give <gem|puncher|remover> <id> [数量] [玩家]）'
+  give-usage: '&c用法: /mosaicgem give <id> [数量] [玩家]'
   give-not-found: '&c未找到对应的{type}配置: &f{id}'
   give-not-found-all: '&c未找到对应的物品配置: &f{id}'
   give-ambiguous: '&c找到多个同名物品，请指定类型: &f{types}'
@@ -47,7 +47,7 @@ messages:
   inventory-full: '&e背包已满，返还物品已掉落在地上。'
   help-title: '&f指令帮助'
   help-reload: '&7/mosaicgem reload &8- &f重载配置'
-  help-give: '&7/mosaicgem give <id> [数量] [玩家] &8- &f给予物品（不区分类型）'
+  help-give: '&7/mosaicgem give <id> [数量] [玩家] &8- &f给予物品'
   help-debug: '&7/mosaicgem debug [玩家] &8- &f查看物品调试信息'
   help-list: '&7/mosaicgem list <gem|puncher|remover> &8- &f查看已配置物品'
   help-selftest: '&7/mosaicgem selftest &8- &f自检配置与数据读写'
@@ -76,3 +76,46 @@ messages:
   selftest-socket-data-fail: '&c镶嵌数据读写失败: {error}'
   selftest-attribute-merge-fail: '&c属性面板合并失败: {error}'
   selftest-punch-lore-fail: '&c打孔 lore 更新失败: {error}'
+
+# 原版属性 id -> 显示名映射（vanilla_attribute 宝石镶嵌后，镶嵌信息 lore 用这里的中文名显示）
+attribute-names:
+  'minecraft:fall_damage_multiplier': 摔落伤害倍率
+  'minecraft:follow_range': 跟随范围
+  'minecraft:spawn_reinforcements': 增援生成几率
+  'minecraft:attack_speed': 攻击速度
+  'minecraft:movement_speed': 移动速度
+  'minecraft:entity_interaction_range': 实体交互距离
+  'minecraft:max_health': 生命上限
+  'minecraft:sweeping_damage_ratio': 横扫伤害比例
+  'minecraft:submerged_mining_speed': 水下挖掘速度
+  'minecraft:flying_speed': 飞行速度
+  'minecraft:oxygen_bonus': 氧气恢复
+  'minecraft:bounciness': 弹跳力
+  'minecraft:friction_modifier': 摩擦力
+  'minecraft:luck': 幸运
+  'minecraft:armor_toughness': 护甲韧性
+  'minecraft:gravity': 重力
+  'minecraft:below_name_distance': 下方名称距离
+  'minecraft:camera_distance': 相机距离
+  'minecraft:burning_time': 燃烧时间
+  'minecraft:max_absorption': 伤害吸收上限
+  'minecraft:movement_efficiency': 移动效率
+  'minecraft:attack_knockback': 攻击击退
+  'minecraft:sneaking_speed': 潜行速度
+  'minecraft:knockback_resistance': 击退抗性
+  'minecraft:armor': 护甲值
+  'minecraft:air_drag_modifier': 空气阻力
+  'minecraft:mining_efficiency': 挖掘效率
+  'minecraft:safe_fall_distance': 安全摔落距离
+  'minecraft:block_interaction_range': 方块交互距离
+  'minecraft:jump_strength': 跳跃强度
+  'minecraft:water_movement_efficiency': 水中移动效率
+  'minecraft:block_break_speed': 方块破坏速度
+  'minecraft:waypoint_transmit_range': 路径点传输距离
+  'minecraft:waypoint_receive_range': 路径点接收距离
+  'minecraft:attack_damage': 攻击力
+  'minecraft:tempt_range': 吸引范围
+  'minecraft:name_tag_distance': 名称标签距离
+  'minecraft:explosion_knockback_resistance': 爆炸击退抗性
+  'minecraft:step_height': 步高
+  'minecraft:scale': 体型比例

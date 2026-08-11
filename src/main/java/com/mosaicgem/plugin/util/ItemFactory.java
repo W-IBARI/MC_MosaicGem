@@ -10,21 +10,28 @@ import com.mosaicgem.plugin.config.SocketLoreTemplate;
 import com.mosaicgem.plugin.model.SocketData;
 import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -33,6 +40,12 @@ import java.util.stream.Collectors;
  * 物品工厂：生成工具物品、读写物品组件（custom data）中的镶嵌数据。
  */
 public class ItemFactory {
+
+    /** 宝石加成方式：SX 属性（写入 lore，由 SX-Attribute 读取） */
+    public static final String BUFF_TYPE_SX = "sx_attribute";
+
+    /** 宝石加成方式：原版属性（直接附加到物品属性修饰符） */
+    public static final String BUFF_TYPE_VANILLA = "vanilla_attribute";
 
     /** 属性合并行标记（数值后）：SX 解析 §X 之前的内容，§X 为无效代码客户端静默忽略 */
     public static final String LORE_MARKER = "\u00A7X";
@@ -392,10 +405,10 @@ public class ItemFactory {
     /**
      * 生成以镶嵌信息标记开头的 lore 行。
      * 注意：行内容不能恰好等于 §X，否则 SX-Attribute 的 split("§X")[0] 会得到空数组并崩溃；
-     * 空行统一写成 §X + 零宽空格（玩家视角仍是无字空行，且不会被序列化器丢弃）。
+     * 空行统一写成 §X + 普通空格（玩家视角仍是无字空行，且不会被序列化器丢弃）。
      */
     private static String socketLine(String text) {
-        return SOCKET_MARKER + (text == null || text.isEmpty() ? "\u200B" : text);
+        return SOCKET_MARKER + (text == null || text.isEmpty() ? " " : text);
     }
 
     private String resolveGemName(String id) {
@@ -447,6 +460,13 @@ public class ItemFactory {
         if (definition == null) {
             return gem.id();
         }
+        if (BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())) {
+            return definition.getAttribute().stream()
+                    .map(ItemFactory::parseVanillaAttribute)
+                    .filter(Objects::nonNull)
+                    .map(attr -> configs.attributeName(attr.id()) + "：" + resolve(attr.value(), gem.values()))
+                    .collect(Collectors.joining("、"));
+        }
         return definition.getAttribute().stream()
                 .map(line -> resolve(line, gem.values()))
                 .map(ItemFactory::stripLoreText)
@@ -463,6 +483,15 @@ public class ItemFactory {
             return List.of();
         }
         List<String> result = new ArrayList<>();
+        if (BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())) {
+            for (String line : definition.getAttribute()) {
+                VanillaAttribute attribute = parseVanillaAttribute(line);
+                if (attribute != null) {
+                    result.add(configs.attributeName(attribute.id()) + "：" + resolve(attribute.value(), gem.values()));
+                }
+            }
+            return result;
+        }
         for (String line : definition.getAttribute()) {
             String stripped = stripLoreText(resolve(line, gem.values()));
             if (!stripped.isEmpty()) {
@@ -470,6 +499,110 @@ public class ItemFactory {
             }
         }
         return result;
+    }
+
+    // ------------------------------------------------------------------
+    // 原版属性（vanilla_attribute）
+    // ------------------------------------------------------------------
+
+    /**
+     * 将原版属性附加到物品上（写入 AttributeModifier，不修改 lore）。
+     * 注意：该服务端的 addAttributeModifier 会整体替换属性修饰符组件，
+     * 因此这里先保留物品现有的全部修饰符（含默认值），再追加宝石修饰符。
+     */
+    public void applyVanillaAttributes(ItemStack item, GemDefinition definition, Map<String, String> values, String instanceId) {
+        if (item == null || definition == null) {
+            return;
+        }
+        List<Map.Entry<Attribute, AttributeModifier>> additions = new ArrayList<>();
+        int index = 0;
+        for (String line : definition.getAttribute()) {
+            VanillaAttribute parsed = parseVanillaAttribute(line);
+            if (parsed == null) {
+                continue;
+            }
+            String resolved = resolve(parsed.value(), values);
+            double amount;
+            try {
+                amount = Double.parseDouble(resolved.trim());
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            NamespacedKey attributeKey;
+            try {
+                attributeKey = NamespacedKey.fromString(parsed.id());
+            } catch (IllegalArgumentException e) {
+                continue;
+            }
+            Attribute attribute = Registry.ATTRIBUTE.get(attributeKey);
+            if (attribute == null) {
+                continue;
+            }
+            NamespacedKey modifierKey = new NamespacedKey(plugin, "gem_" + instanceId.replace("-", "") + "_" + index);
+            additions.add(Map.entry(attribute, new AttributeModifier(modifierKey, amount, AttributeModifier.Operation.ADD_NUMBER)));
+            index++;
+        }
+        if (additions.isEmpty()) {
+            return;
+        }
+
+        ItemAttributeModifiers current = item.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.itemAttributes();
+        if (current != null) {
+            for (ItemAttributeModifiers.Entry entry : current.modifiers()) {
+                builder.addModifier(entry.attribute(), entry.modifier(), entry.getGroup(), entry.display());
+            }
+        }
+        for (Map.Entry<Attribute, AttributeModifier> addition : additions) {
+            builder.addModifier(addition.getKey(), addition.getValue());
+        }
+        item.setData(DataComponentTypes.ATTRIBUTE_MODIFIERS, builder.build());
+    }
+
+    /**
+     * 移除某颗原版属性宝石附加到物品上的 AttributeModifier。
+     */
+    public void removeVanillaAttributes(ItemStack item, SocketedGem gem) {
+        if (item == null || gem == null) {
+            return;
+        }
+        ItemAttributeModifiers current = item.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        if (current == null) {
+            return;
+        }
+        String instancePrefix = "gem_" + gem.instanceId().replace("-", "");
+        ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.itemAttributes();
+        boolean removed = false;
+        for (ItemAttributeModifiers.Entry entry : current.modifiers()) {
+            NamespacedKey key = entry.modifier().getKey();
+            if (key != null && key.getKey().startsWith(instancePrefix)) {
+                removed = true;
+                continue;
+            }
+            builder.addModifier(entry.attribute(), entry.modifier(), entry.getGroup(), entry.display());
+        }
+        if (removed) {
+            item.setData(DataComponentTypes.ATTRIBUTE_MODIFIERS, builder.build());
+        }
+    }
+
+    private static VanillaAttribute parseVanillaAttribute(String line) {
+        if (line == null || line.isBlank()) {
+            return null;
+        }
+        int index = Math.max(line.lastIndexOf(':'), line.lastIndexOf('：'));
+        if (index <= 0) {
+            return null;
+        }
+        String id = line.substring(0, index).trim();
+        String value = line.substring(index + 1).trim();
+        if (id.isEmpty() || value.isEmpty()) {
+            return null;
+        }
+        return new VanillaAttribute(id, value);
+    }
+
+    private record VanillaAttribute(String id, String value) {
     }
 
     /**

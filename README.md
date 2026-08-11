@@ -1,11 +1,11 @@
 # MC_MosaicGem
 
-Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性接入 **SX-Attribute**，适配 **Folia 26.2 / Java Edition 26.2**。
+Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性支持 **SX-Attribute（lore 合并）** 与 **原版属性（AttributeModifier）**，适配 **Folia 26.2 / Java Edition 26.2**。
 
 ## 功能特性
 
 - **装备打孔**：使用打孔器为装备添加孔位，成功率与双维度孔数上限可配置
-- **宝石镶嵌**：宝石携带随机数值，镶嵌后合并进装备属性面板，由 SX-Attribute 读取生效
+- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符
 - **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
@@ -26,7 +26,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 1. 构建插件（见下文「构建」），或使用已发布的 jar
 2. 将 `MosaicGem-*.jar` 放入服务端 `plugins` 目录
 3. 如需属性生效，同时放入 `SX-Item` 与 `SX-Attribute` 的 jar
-4. 启动服务端，插件会自动生成 `config.yml`、`messages/zh_cn.yml`、`messages/en_us.yml`、`gems.yml`、`punchers.yml`、`removers.yml`
+4. 启动服务端，插件会自动生成 `config.yml`、`messages/zh_cn.yml`、`messages/en_us.yml`、`items/gems.yml`、`items/punchers.yml`、`items/removers.yml`
 5. 按需修改配置后执行 `/mosaicgem reload`
 
 > 配置热重载时若发现某个 yml 缺失，会自动从插件内置默认版本补齐，不会覆盖已有文件。
@@ -48,7 +48,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 - 目标装备必须已有孔位，且已镶嵌数量未达到孔数上限
 - 宝石生成时按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
 - 同一种宝石可按 `repetitions` 限制重复镶嵌次数（不填为无上限）
-- 目前仅支持 `buffType: sx_attribute`，其他类型会拦截镶嵌并提示
+- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）与 `vanilla_attribute`（附加原版属性），其他类型会拦截镶嵌并提示
 - 属性面板合并规则：
   - 物品原有属性行与所有宝石同类数值求和，显示为 `总值（+加成）`，如 `攻击力：33.90（+20）`
   - 宝石独有的属性自动追加新属性行
@@ -83,7 +83,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 | 指令 | 说明 | 权限 |
 | --- | --- | --- |
 | `/mosaicgem reload` | 重载全部配置文件（缺失的 yml 自动补齐） | `mosaicgem.reload`（默认 OP） |
-| `/mosaicgem give <id> [数量] [玩家]` | 给予宝石/打孔器/拆卸器（自动匹配类型，不区分；也兼容 `/mosaicgem give <gem\|puncher\|remover> <id> ...`） | `mosaicgem.give`（默认 OP） |
+| `/mosaicgem give <id> [数量] [玩家]` | 给予宝石/打孔器/拆卸器（自动匹配类型，不区分） | `mosaicgem.give`（默认 OP） |
 | `/mosaicgem debug [玩家]` | 查看物品的孔数、宝石、属性行等调试信息 | `mosaicgem.debug`（默认所有玩家） |
 | `/mosaicgem list <gem\|puncher\|remover>` | 列出已配置的物品 | `mosaicgem.list`（默认所有玩家） |
 | `/mosaicgem selftest` | 无玩家环境自检：配置解析、物品生成、数据读写、属性合并 | `mosaicgem.debug` |
@@ -159,6 +159,8 @@ attribute-lore:
 
 语言值不区分大小写，`-` 与 `_` 等价（如 `en-US` 与 `en_us` 均可）。若指定语言的文件不存在，会自动回退到中文文件；旧版 `messages.yml` 在中文语言下仍会被优先读取，用于保留已自定义的文案。
 
+语言文件里还有一个 `attribute-names` 段，用于把原版属性 id（如 `minecraft:attack_damage`）映射成玩家可见的显示名（如 `攻击力`），`vanilla_attribute` 宝石镶嵌后的镶嵌信息 lore 会使用这里的名字。
+
 | 消息键 | 场景 |
 | --- | --- |
 | `punch-max-global` | 打孔：全局孔数已满 |
@@ -178,14 +180,14 @@ attribute-lore:
 
 另有成功/指令/帮助/调试/自检类消息：`punch-success`、`socket-success`、`remove-success`、`reload-success`、`give-*`、`player-not-found`、`no-permission`、`help-*`、`debug-*`、`selftest-*` 等，完整键值见文件内注释。
 
-### gems.yml
+### items/gems.yml
 
 ```yaml
 # 内部名（指令发放时使用）
-测试宝石:
+SA测试宝石:
   material: PAPER              # 物品材质
   isEnchant: true              # 是否带附魔光效
-  name: "&c测试宝石"            # 物品名称（支持 & 颜色代码）
+  name: "&cSA测试宝石"          # 物品名称（支持 & 颜色代码）
   lore:                        # 物品 lore
     - '&a▪ 伤害增加：${random_value}'
   custom-model-data: 0         # 自定义模型序号
@@ -196,17 +198,38 @@ attribute-lore:
   repetitions: 5               # 同种宝石可重复镶嵌次数，不填默认无上限
   random:                      # 宝石生成时随机取值，可在 lore/attribute 中引用
     random_value: '10.00~20.00'
-  buffType: 'sx_attribute'     # 属性生效方式，目前仅支持 sx_attribute
-  attribute:                   # 宝石属性行（合并进装备属性面板）
+  buffType: 'sx_attribute'     # SX 属性：写入 lore，由 SX-Attribute 读取
+  attribute:                   # 格式：属性名：数值
     - '攻击力：${random_value}'
     - '防御力：${random_value}'
+
+原版测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&b原版测试宝石"
+  lore:
+    - '&a▪ 攻击伤害：${random_value}'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  random:
+    random_value: '5.00~10.00'
+  buffType: 'vanilla_attribute'  # 原版属性：直接附加到物品属性修饰符，不修改 lore
+  attribute:                     # 格式：原版属性id：数值
+    - 'minecraft:attack_damage: ${random_value}'
+    - 'minecraft:attack_speed: 2'
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
+- `sx_attribute` 的属性行写进装备 lore 并参与属性面板合并；`vanilla_attribute` 的属性行直接附加为原版属性修饰符，**不会**修改/覆盖装备 lore
+- 原版属性 id 的显示名在对应语言文件的 `attribute-names` 段中配置，未配置时显示原始 id
 - `targetMaterial` 与 `targetType` 同时配置时需**同时满足**才可操作
 - 支持的装备类型：`SWORD`、`SPEAR`、`AXE`、`HELMET`、`CHESTPLATE`、`LEGGINGS`、`BOOTS`、`ELYTRA`
 
-### punchers.yml
+### items/punchers.yml
 
 ```yaml
 测试打孔器:
@@ -224,7 +247,7 @@ attribute-lore:
   holesnum: 2                  # 该类打孔器给同一物品的孔数上限
 ```
 
-### removers.yml
+### items/removers.yml
 
 ```yaml
 测试拆卸器:
@@ -265,7 +288,7 @@ attribute-lore:
 
 **Q：属性不生效？**
 
-确认 `SX-Item` 与 `SX-Attribute` 已安装并启用，宝石的 `buffType` 为 `sx_attribute`，且装备属性面板中存在合并后的属性行。
+确认 `SX-Item` 与 `SX-Attribute` 已安装并启用，宝石的 `buffType` 为 `sx_attribute`，且装备属性面板中存在合并后的属性行；`vanilla_attribute` 宝石则检查物品属性面板中是否存在对应原版属性。
 
 **Q：修改配置后需要重启吗？**
 

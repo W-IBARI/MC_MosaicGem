@@ -20,7 +20,7 @@ messages:
   prefix: '&8[&6MosaicGem&8] '
   no-permission: '&cYou do not have permission to run this command!'
   reload-success: '&aConfiguration reloaded.'
-  give-usage: '&cUsage: /mosaicgem give <id> [amount] [player] (or /mosaicgem give <gem|puncher|remover> <id> [amount] [player])'
+  give-usage: '&cUsage: /mosaicgem give <id> [amount] [player]'
   give-not-found: '&cNo {type} config found: &f{id}'
   give-not-found-all: '&cNo item config found: &f{id}'
   give-ambiguous: '&cMultiple items share this id; please specify a type: &f{types}'
@@ -47,7 +47,7 @@ messages:
   inventory-full: '&eYour inventory is full; the returned item was dropped on the ground.'
   help-title: '&fCommand help'
   help-reload: '&7/mosaicgem reload &8- &fReload configuration'
-  help-give: '&7/mosaicgem give <id> [amount] [player] &8- &fGive items (any type)'
+  help-give: '&7/mosaicgem give <id> [amount] [player] &8- &fGive items'
   help-debug: '&7/mosaicgem debug [player] &8- &fView item debug info'
   help-list: '&7/mosaicgem list <gem|puncher|remover> &8- &fList configured items'
   help-selftest: '&7/mosaicgem selftest &8- &fRun configuration and data self-test'
@@ -76,3 +76,46 @@ messages:
   selftest-socket-data-fail: '&cSocket data read/write failed: {error}'
   selftest-attribute-merge-fail: '&cAttribute lore merge failed: {error}'
   selftest-punch-lore-fail: '&cPunch lore update failed: {error}'
+
+# Vanilla attribute id -> display name mapping (used in socket lore for vanilla_attribute gems)
+attribute-names:
+  'minecraft:fall_damage_multiplier': Fall Damage Multiplier
+  'minecraft:follow_range': Follow Range
+  'minecraft:spawn_reinforcements': Spawn Reinforcements
+  'minecraft:attack_speed': Attack Speed
+  'minecraft:movement_speed': Movement Speed
+  'minecraft:entity_interaction_range': Entity Interaction Range
+  'minecraft:max_health': Max Health
+  'minecraft:sweeping_damage_ratio': Sweeping Damage Ratio
+  'minecraft:submerged_mining_speed': Submerged Mining Speed
+  'minecraft:flying_speed': Flying Speed
+  'minecraft:oxygen_bonus': Oxygen Bonus
+  'minecraft:bounciness': Bounciness
+  'minecraft:friction_modifier': Friction Modifier
+  'minecraft:luck': Luck
+  'minecraft:armor_toughness': Armor Toughness
+  'minecraft:gravity': Gravity
+  'minecraft:below_name_distance': Below Name Distance
+  'minecraft:camera_distance': Camera Distance
+  'minecraft:burning_time': Burning Time
+  'minecraft:max_absorption': Max Absorption
+  'minecraft:movement_efficiency': Movement Efficiency
+  'minecraft:attack_knockback': Attack Knockback
+  'minecraft:sneaking_speed': Sneaking Speed
+  'minecraft:knockback_resistance': Knockback Resistance
+  'minecraft:armor': Armor
+  'minecraft:air_drag_modifier': Air Drag Modifier
+  'minecraft:mining_efficiency': Mining Efficiency
+  'minecraft:safe_fall_distance': Safe Fall Distance
+  'minecraft:block_interaction_range': Block Interaction Range
+  'minecraft:jump_strength': Jump Strength
+  'minecraft:water_movement_efficiency': Water Movement Efficiency
+  'minecraft:block_break_speed': Block Break Speed
+  'minecraft:waypoint_transmit_range': Waypoint Transmit Range
+  'minecraft:waypoint_receive_range': Waypoint Receive Range
+  'minecraft:attack_damage': Attack Damage
+  'minecraft:tempt_range': Tempt Range
+  'minecraft:name_tag_distance': Name Tag Distance
+  'minecraft:explosion_knockback_resistance': Explosion Knockback Resistance
+  'minecraft:step_height': Step Height
+  'minecraft:scale': Scale

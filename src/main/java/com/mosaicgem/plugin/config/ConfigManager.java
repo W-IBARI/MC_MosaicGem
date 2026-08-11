@@ -1,6 +1,7 @@
 package com.mosaicgem.plugin.config;
 
 import com.mosaicgem.plugin.MosaicGemPlugin;
+import com.mosaicgem.plugin.util.ItemFactory;
 import com.mosaicgem.plugin.model.ToolType;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -51,8 +52,9 @@ public class ConfigManager {
 
         int warnings = 0;
         for (GemDefinition gem : gems.values()) {
-            if (!"sx_attribute".equalsIgnoreCase(gem.getBuffType())) {
-                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType() + "（当前仅支持 sx_attribute，属性将不会注入）");
+            if (!ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(gem.getBuffType())
+                    && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(gem.getBuffType())) {
+                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType() + "（当前仅支持 sx_attribute / vanilla_attribute，属性将不会注入）");
                 warnings++;
             }
         }
@@ -137,7 +139,8 @@ public class ConfigManager {
 
     private <T extends ItemDefinition> Map<String, T> loadDefinitions(String fileName, DefinitionFactory<T> factory) {
         Map<String, T> result = new LinkedHashMap<>();
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), fileName));
+        FileConfiguration cfg = YamlConfiguration.loadConfiguration(
+                new File(plugin.getDataFolder(), "items" + File.separator + fileName));
         for (String key : cfg.getKeys(false)) {
             ConfigurationSection section = cfg.getConfigurationSection(key);
             if (section == null) {
@@ -203,6 +206,21 @@ public class ConfigManager {
 
     public String message(String key) {
         return messages.getString("messages." + key, key);
+    }
+
+    /**
+     * 获取原版属性 id 的显示名（来自语言文件 attribute-names 段）。
+     */
+    public String attributeName(String id) {
+        if (id == null) {
+            return id;
+        }
+        ConfigurationSection section = messages.getConfigurationSection("attribute-names");
+        if (section == null) {
+            return id;
+        }
+        Object name = section.getValues(false).get(id);
+        return name != null ? name.toString() : id;
     }
 
     public SocketLoreTemplate socketLore() {

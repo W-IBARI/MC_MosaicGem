@@ -88,7 +88,7 @@ public class AttributeLoreService {
         Map<String, Bonus> bonuses = new LinkedHashMap<>();
         for (SocketedGem gem : gems) {
             GemDefinition definition = configs.getGem(gem.id());
-            if (definition == null) {
+            if (definition == null || !ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(definition.getBuffType())) {
                 continue;
             }
             for (String attributeLine : definition.getAttribute()) {
