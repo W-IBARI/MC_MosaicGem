@@ -128,7 +128,7 @@ public class GemService {
         int newHoles = data.holes() + 1;
         ItemStack result = target.clone();
         factory.writeSocketData(result, newHoles, sources, data.gems());
-        factory.applySocketLore(result, new SocketData(newHoles, sources, data.gems()), configs.socketLore(), configs.maxHoles());
+        factory.applySocketLore(result, new SocketData(newHoles, sources, data.gems()), configs.socketLore());
         String message = configs.message("punch-success")
                 .replace("{holes}", String.valueOf(newHoles))
                 .replace("{max}", String.valueOf(globalMax));
@@ -174,7 +174,7 @@ public class GemService {
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.appendLore(result, lines);
-        factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore(), configs.maxHoles());
+        factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
         return new OperationResult(result, null, true, configs.message("socket-success"));
     }
 
@@ -202,7 +202,7 @@ public class GemService {
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.removeLoreLines(result, removed.lines());
-        factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore(), configs.maxHoles());
+        factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
 
         ItemStack returnedGem = buildReturnedGem(removed);
         return new OperationResult(result, returnedGem, true, configs.message("remove-success"));

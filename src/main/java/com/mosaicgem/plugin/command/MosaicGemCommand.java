@@ -295,7 +295,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 throw new IllegalStateException("宝石数据读写不一致");
             }
             SocketLoreTemplate template = configs.socketLore();
-            factory.applySocketLore(sword, data, template, configs.maxHoles());
+            factory.applySocketLore(sword, data, template);
             if (template.enabled() && factory.readSocketLines(sword).isEmpty()) {
                 throw new IllegalStateException("镶嵌信息 lore 未写入");
             }

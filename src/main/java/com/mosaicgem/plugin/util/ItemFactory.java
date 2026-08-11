@@ -273,7 +273,7 @@ public class ItemFactory {
     /**
      * 更新装备上的镶嵌信息 lore：先移除旧信息，再按模版写入新信息。
      */
-    public void applySocketLore(ItemStack item, SocketData data, SocketLoreTemplate template, int maxHoles) {
+    public void applySocketLore(ItemStack item, SocketData data, SocketLoreTemplate template) {
         List<String> oldLines = readSocketLines(item);
         if (!oldLines.isEmpty()) {
             removeLoreLines(item, oldLines);
@@ -281,8 +281,9 @@ public class ItemFactory {
 
         List<String> newLines = new ArrayList<>();
         if (template.enabled()) {
-            String holes = String.valueOf(data.holes());
-            String max = String.valueOf(maxHoles);
+            // {holes} = 已经镶嵌的孔洞数（宝石数），{max_holes} = 物品可用的孔洞数（已打孔数）
+            String holes = String.valueOf(data.gems().size());
+            String max = String.valueOf(data.holes());
             String gemCount = String.valueOf(data.gems().size());
             for (String line : template.lines()) {
                 newLines.add(colorize(line
