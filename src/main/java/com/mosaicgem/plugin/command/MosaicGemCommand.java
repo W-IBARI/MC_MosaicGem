@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * /mosaicgem 指令：reload / give / debug / list
@@ -83,32 +84,66 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         if (!hasPermission(sender, "mosaicgem.give")) {
             return true;
         }
-        if (args.length < 3) {
+        if (args.length < 2) {
             send(sender, configs.message("give-usage"));
             return true;
         }
-        ToolType type = ToolType.fromString(args[1]);
-        if (type == null) {
+        // 兼容旧语法：/mosaicgem give <gem|puncher|remover> <id> [数量] [玩家]
+        ToolType explicitType = ToolType.fromString(args[1]);
+        boolean typed = explicitType != null;
+        if (typed && args.length < 3) {
             send(sender, configs.message("give-usage"));
             return true;
         }
-        String id = args[2];
-        ItemDefinition definition = configs.find(type, id);
-        if (definition == null) {
-            send(sender, configs.message("give-not-found")
-                    .replace("{type}", type.name().toLowerCase(Locale.ROOT))
-                    .replace("{id}", id));
+        String id = args[typed ? 2 : 1];
+        int amountIndex = typed ? 3 : 2;
+        int playerIndex = typed ? 4 : 3;
+
+        // 不指定类型时，在所有类型中查找同名物品
+        GiveMatch match = null;
+        if (typed) {
+            ItemDefinition definition = configs.find(explicitType, id);
+            if (definition != null) {
+                match = new GiveMatch(explicitType, definition);
+            }
+        } else {
+            List<GiveMatch> matches = new ArrayList<>();
+            for (ToolType type : ToolType.values()) {
+                ItemDefinition definition = configs.find(type, id);
+                if (definition != null) {
+                    matches.add(new GiveMatch(type, definition));
+                }
+            }
+            if (matches.size() > 1) {
+                send(sender, configs.message("give-ambiguous").replace("{types}",
+                        matches.stream().map(m -> m.type().name().toLowerCase(Locale.ROOT))
+                                .collect(Collectors.joining(", "))));
+                return true;
+            }
+            if (!matches.isEmpty()) {
+                match = matches.get(0);
+            }
+        }
+        if (match == null) {
+            String message = typed
+                    ? configs.message("give-not-found")
+                            .replace("{type}", explicitType.name().toLowerCase(Locale.ROOT))
+                    : configs.message("give-not-found-all");
+            send(sender, message.replace("{id}", id));
             return true;
         }
-        int amount = args.length >= 4 ? parseAmount(args[3]) : 1;
+        ToolType type = match.type();
+        ItemDefinition definition = match.definition();
+
+        int amount = args.length > amountIndex ? parseAmount(args[amountIndex]) : 1;
         Player target = null;
-        if (args.length >= 5) {
-            target = Bukkit.getPlayerExact(args[4]);
+        if (args.length > playerIndex) {
+            target = Bukkit.getPlayerExact(args[playerIndex]);
         } else if (sender instanceof Player player) {
             target = player;
         }
         if (target == null) {
-            send(sender, configs.message("player-not-found").replace("{player}", args.length >= 5 ? args[4] : "?"));
+            send(sender, configs.message("player-not-found").replace("{player}", args.length > playerIndex ? args[playerIndex] : "?"));
             return true;
         }
 
@@ -491,6 +526,9 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             result.addAll(List.of("reload", "give", "debug", "list", "selftest"));
         } else if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
             result.addAll(List.of("gem", "puncher", "remover"));
+            result.addAll(configs.getGems().keySet());
+            result.addAll(configs.getPunchers().keySet());
+            result.addAll(configs.getRemovers().keySet());
         } else if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
             ToolType type = ToolType.fromString(args[1]);
             if (type != null) {
@@ -500,7 +538,11 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                     case REMOVER -> configs.getRemovers().keySet();
                 });
             }
-        } else if (args.length == 5 && args[0].equalsIgnoreCase("give")) {
+        } else if (args.length == 4 && args[0].equalsIgnoreCase("give") && ToolType.fromString(args[1]) == null) {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                result.add(player.getName());
+            }
+        } else if (args.length == 5 && args[0].equalsIgnoreCase("give") && ToolType.fromString(args[1]) != null) {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 result.add(player.getName());
             }
@@ -548,5 +590,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             return;
         }
         sender.sendMessage(ItemFactory.colorize(configs.prefix() + message));
+    }
+
+    private record GiveMatch(ToolType type, ItemDefinition definition) {
     }
 }

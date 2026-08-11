@@ -9,7 +9,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 - **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
-- **完整反馈**：所有被拦截或失败的操作都会提示玩家，文案按语言拆分到独立的 `messages_*.yml` 中配置
+- **完整反馈**：所有被拦截或失败的操作都会提示玩家，文案按语言拆分到独立的 `messages/` 目录语言文件中配置
 - **管理指令**：重载配置、发放物品、调试查看、列表、自检
 - **格式保留**：镶嵌/打孔不会破坏物品原有 lore 的颜色、斜体、加粗等格式
 
@@ -26,7 +26,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 1. 构建插件（见下文「构建」），或使用已发布的 jar
 2. 将 `MosaicGem-*.jar` 放入服务端 `plugins` 目录
 3. 如需属性生效，同时放入 `SX-Item` 与 `SX-Attribute` 的 jar
-4. 启动服务端，插件会自动生成 `config.yml`、`messages_zh_cn.yml`、`messages_en_us.yml`、`gems.yml`、`punchers.yml`、`removers.yml`
+4. 启动服务端，插件会自动生成 `config.yml`、`messages/zh_cn.yml`、`messages/en_us.yml`、`gems.yml`、`punchers.yml`、`removers.yml`
 5. 按需修改配置后执行 `/mosaicgem reload`
 
 > 配置热重载时若发现某个 yml 缺失，会自动从插件内置默认版本补齐，不会覆盖已有文件。
@@ -83,7 +83,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 | 指令 | 说明 | 权限 |
 | --- | --- | --- |
 | `/mosaicgem reload` | 重载全部配置文件（缺失的 yml 自动补齐） | `mosaicgem.reload`（默认 OP） |
-| `/mosaicgem give <gem\|puncher\|remover> <id> [数量] [玩家]` | 给予宝石/打孔器/拆卸器 | `mosaicgem.give`（默认 OP） |
+| `/mosaicgem give <id> [数量] [玩家]` | 给予宝石/打孔器/拆卸器（自动匹配类型，不区分；也兼容 `/mosaicgem give <gem\|puncher\|remover> <id> ...`） | `mosaicgem.give`（默认 OP） |
 | `/mosaicgem debug [玩家]` | 查看物品的孔数、宝石、属性行等调试信息 | `mosaicgem.debug`（默认所有玩家） |
 | `/mosaicgem list <gem\|puncher\|remover>` | 列出已配置的物品 | `mosaicgem.list`（默认所有玩家） |
 | `/mosaicgem selftest` | 无玩家环境自检：配置解析、物品生成、数据读写、属性合并 | `mosaicgem.debug` |
@@ -152,10 +152,10 @@ attribute-lore:
 
 ### 多语言消息文件
 
-所有玩家消息按语言拆分：`config.yml` 的 `settings.language` 决定加载哪个文件（如 `zh_cn` 对应 `messages_zh_cn.yml`），`{xxx}` 为占位符。内置语言：
+所有玩家消息按语言拆分：`config.yml` 的 `settings.language` 决定加载 `messages/` 目录下的哪个文件（如 `zh_cn` 对应 `messages/zh_cn.yml`），`{xxx}` 为占位符。内置语言：
 
-- `messages_zh_cn.yml`：简体中文
-- `messages_en_us.yml`：English（英文）
+- `messages/zh_cn.yml`：简体中文
+- `messages/en_us.yml`：English（英文）
 
 语言值不区分大小写，`-` 与 `_` 等价（如 `en-US` 与 `en_us` 均可）。若指定语言的文件不存在，会自动回退到中文文件；旧版 `messages.yml` 在中文语言下仍会被优先读取，用于保留已自定义的文案。
 

@@ -15,8 +15,8 @@ import java.util.List;
 public final class MosaicGemPlugin extends JavaPlugin {
 
     private static final List<String> MESSAGE_FILES = List.of(
-            "messages_zh_cn.yml",
-            "messages_en_us.yml"
+            "messages/zh_cn.yml",
+            "messages/en_us.yml"
     );
 
     private static MosaicGemPlugin instance;
@@ -83,7 +83,12 @@ public final class MosaicGemPlugin extends JavaPlugin {
     }
 
     private void saveResourceIfAbsent(String name) {
-        if (!new File(getDataFolder(), name).exists()) {
+        File target = new File(getDataFolder(), name);
+        if (!target.exists()) {
+            File parent = target.getParentFile();
+            if (parent != null) {
+                parent.mkdirs();
+            }
             saveResource(name, false);
         }
     }

@@ -1,6 +1,6 @@
 # MosaicGem 主配置
 settings:
-  # 消息语言（对应加载 messages_<语言>.yml；内置语言：zh_cn / en_us）
+  # 消息语言（对应加载 messages/<语言>.yml；内置语言：zh_cn / en_us）
   language: zh_cn
   # 单个物品可拥有的最大孔数（全局硬上限，不论孔来自哪个打孔器，总和均不可超过）
   max-holes: 6

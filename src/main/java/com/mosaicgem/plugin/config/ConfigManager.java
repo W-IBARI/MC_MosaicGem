@@ -95,12 +95,12 @@ public class ConfigManager {
         }
 
         if (loaded == null) {
-            File selected = new File(plugin.getDataFolder(), "messages_" + language + ".yml");
+            File selected = new File(plugin.getDataFolder(), "messages" + File.separator + language + ".yml");
             if (selected.exists()) {
                 loaded = YamlConfiguration.loadConfiguration(selected);
             } else {
-                plugin.getLogger().warning("消息文件缺失: " + selected.getName() + "，回退到 messages_" + DEFAULT_LANGUAGE + ".yml");
-                File fallback = new File(plugin.getDataFolder(), "messages_" + DEFAULT_LANGUAGE + ".yml");
+                plugin.getLogger().warning("消息文件缺失: " + selected.getName() + "，回退到 messages/" + DEFAULT_LANGUAGE + ".yml");
+                File fallback = new File(plugin.getDataFolder(), "messages" + File.separator + DEFAULT_LANGUAGE + ".yml");
                 if (fallback.exists()) {
                     loaded = YamlConfiguration.loadConfiguration(fallback);
                 } else if (legacy.exists()) {
@@ -112,7 +112,7 @@ public class ConfigManager {
             }
         }
 
-        FileConfiguration defaults = bundledMessages("messages_" + DEFAULT_LANGUAGE + ".yml");
+        FileConfiguration defaults = bundledMessages("messages/" + DEFAULT_LANGUAGE + ".yml");
         if (defaults != null) {
             loaded.setDefaults(defaults);
         }
