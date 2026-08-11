@@ -26,7 +26,8 @@ public record SocketLoreTemplate(
     );
 
     private static final List<String> DEFAULT_GEM_LINES = List.of(
-            "&7宝石{index}: &f{gem} &7- &f{values}"
+            "&7宝石{index}: &f{gem}",
+            "&7  {value_lines}"
     );
 
     public static SocketLoreTemplate from(ConfigurationSection section) {

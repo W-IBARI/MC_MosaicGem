@@ -64,6 +64,7 @@ messages:
 #   {gem}        宝石显示名
 #   {id}         宝石内部名
 #   {values}     宝石数值描述（如：攻击力：20.00）
+#   {value_lines} 宝石数值描述（每个属性单独一行）
 socket-lore:
   enabled: true
   lines:
@@ -71,7 +72,8 @@ socket-lore:
     - '&f[ &6镶嵌信息 &f]'
     - '&7孔位: &f{holes}&7/&f{max_holes}'
   gem-lines:
-    - '&7宝石{index}: &f{gem} &7- &f{values}'
+    - '&7宝石{index}: &f{gem}'
+    - '&7  {value_lines}'
   empty-line: '&7暂无宝石'
 
 # 属性面板合并显示：镶嵌后把宝石属性合并进物品原有的属性行

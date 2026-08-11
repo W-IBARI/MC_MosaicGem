@@ -280,12 +280,16 @@ public class ItemFactory {
     }
 
     private static Component toComponent(String line) {
-        int markerIndex = line.indexOf(LORE_MARKER);
+        String colored = colorize(line);
+        int markerIndex = colored.indexOf(LORE_MARKER);
         if (markerIndex < 0) {
-            return LegacyComponentSerializer.legacySection().deserialize(line);
+            return LegacyComponentSerializer.legacySection().deserialize(colored);
         }
-        Component prefix = LegacyComponentSerializer.legacySection().deserialize(line.substring(0, markerIndex));
-        return prefix.append(Component.text(line.substring(markerIndex)));
+        Component prefix = LegacyComponentSerializer.legacySection().deserialize(colored.substring(0, markerIndex));
+        Component suffix = LegacyComponentSerializer.legacySection().deserialize(colored.substring(markerIndex + LORE_MARKER.length()));
+        // 加成文字默认继承数值行风格；配置里带了颜色代码时以配置为准
+        Component styledSuffix = suffix.style(style -> style.merge(prefix.style()));
+        return prefix.append(Component.text(LORE_MARKER)).append(styledSuffix);
     }
 
     // ------------------------------------------------------------------
@@ -329,11 +333,22 @@ public class ItemFactory {
                 String gemName = resolveGemName(gem.id());
                 String gemValues = resolveGemValues(gem);
                 for (String line : template.gemLines()) {
-                    newLines.add(colorize(line
+                    String base = line
                             .replace("{index}", String.valueOf(index))
                             .replace("{gem}", gemName)
                             .replace("{id}", gem.id())
-                            .replace("{values}", gemValues)));
+                            .replace("{values}", gemValues);
+                    if (base.contains("{value_lines}")) {
+                        List<String> valueLines = resolveGemValueList(gem);
+                        if (valueLines.isEmpty()) {
+                            continue;
+                        }
+                        for (String value : valueLines) {
+                            newLines.add(colorize(base.replace("{value_lines}", value)));
+                        }
+                    } else {
+                        newLines.add(colorize(base));
+                    }
                 }
                 index++;
             }
@@ -404,6 +419,24 @@ public class ItemFactory {
                 .map(ItemFactory::stripLoreText)
                 .filter(line -> !line.isEmpty())
                 .collect(Collectors.joining("、"));
+    }
+
+    /**
+     * 生成宝石的数值行列表（每条属性一行），用于 {value_lines} 占位符。
+     */
+    public List<String> resolveGemValueList(SocketedGem gem) {
+        GemDefinition definition = configs.getGem(gem.id());
+        if (definition == null) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String line : definition.getAttribute()) {
+            String stripped = stripLoreText(resolve(line, gem.values()));
+            if (!stripped.isEmpty()) {
+                result.add(stripped);
+            }
+        }
+        return result;
     }
 
     /**

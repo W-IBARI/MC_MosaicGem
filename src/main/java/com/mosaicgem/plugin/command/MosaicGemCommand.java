@@ -317,7 +317,11 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
 
         try {
             ItemStack sword = new ItemStack(Material.IRON_SWORD);
-            sword.editMeta(meta -> meta.setLore(List.of("\u00A7r<#FFAA00>攻击力：<#FF5555>13.90")));
+            sword.editMeta(meta -> meta.setLore(List.of(
+                    "\u00A7o攻击力：\u00A7x\u00A7F\u00A7F\u00A75\u00A75\u00A75\u00A7513.90",
+                    "\u00A7o斜体说明",
+                    "\u00A7l加粗说明"
+            )));
             Map<String, String> gemValues = new LinkedHashMap<>();
             gemValues.put("random_value", "20.00");
             SocketedGem gem = new SocketedGem("测试宝石", "test-uuid-merge", gemValues, List.of());
@@ -327,19 +331,26 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
 
             AttributeLoreService attributeLoreService = new AttributeLoreService(configs, factory);
             attributeLoreService.update(sword, List.of(gem));
-            String mergedLine = sword.getItemMeta().getLore().get(0);
+            java.util.function.Function<String, String> escape = s -> s.replace("\u00A7", "\\u00A7").replace("\u200B", "\\u200B");
+            List<String> resultLore = sword.getItemMeta().getLore();
+            String mergedLine = resultLore.get(0);
             boolean hasMarker = mergedLine.contains(AttributeLoreService.MARKER);
             boolean hasSectionX = mergedLine.contains("\u00A7X");
             boolean hasZw = mergedLine.contains("\u200B");
-            if (!mergedLine.contains("33.90") || !mergedLine.contains("（+20") || !hasMarker) {
+            boolean italicAttribute = mergedLine.contains("\u00A7o");
+            boolean italicOther = resultLore.get(1).contains("\u00A7o");
+            boolean boldOther = resultLore.get(2).contains("\u00A7l");
+            if (!mergedLine.contains("33.90") || !mergedLine.contains("（+20") || !hasMarker
+                    || !italicAttribute || !italicOther || !boldOther) {
                 throw new IllegalStateException("属性合并失败: marker=" + hasMarker + " sectionX=" + hasSectionX
-                        + " zw=" + hasZw + " line=" + mergedLine.replace("\u00A7", "\\u00A7").replace("\u200B", "\\u200B"));
+                        + " zw=" + hasZw + " italicAttr=" + italicAttribute + " italicOther=" + italicOther
+                        + " boldOther=" + boldOther + " lore=" + resultLore.stream().map(escape).toList());
             }
             // 再次更新（模拟拆卸重算）应还原后重新合并，结果稳定
             attributeLoreService.update(sword, List.of(gem));
             String mergedLine2 = sword.getItemMeta().getLore().get(0);
             if (!mergedLine2.contains("33.90") || !mergedLine2.contains("（+20")) {
-                throw new IllegalStateException("属性重复合并异常: " + mergedLine2);
+                throw new IllegalStateException("属性重复合并异常: " + escape.apply(mergedLine2));
             }
             ok++;
         } catch (Exception e) {
