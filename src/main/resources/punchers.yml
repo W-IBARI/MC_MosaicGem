@@ -1,0 +1,21 @@
+# 打孔器配置
+# 内部名:
+#   material / isEnchant / name / lore / custom-model-data: 同上
+#   targetType: 可打孔的物品类型，不填默认全生效
+#   targetMaterial: 可打孔的物品id，不填默认全生效
+#   rate: 成功率（0-100）
+#   holesnum: 通过该打孔器，同一物品可拥有的孔的上限
+
+测试打孔器:
+  material: PAPER
+  isEnchant: true
+  name: "&c测试打孔器"
+  lore:
+    - '我是lore描述'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  rate: 10
+  holesnum: 2

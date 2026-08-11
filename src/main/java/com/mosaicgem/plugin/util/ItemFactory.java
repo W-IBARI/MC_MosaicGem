@@ -1,0 +1,332 @@
+package com.mosaicgem.plugin.util;
+
+import com.mosaicgem.plugin.MosaicGemPlugin;
+import com.mosaicgem.plugin.config.GemDefinition;
+import com.mosaicgem.plugin.config.ItemDefinition;
+import com.mosaicgem.plugin.config.PuncherDefinition;
+import com.mosaicgem.plugin.config.RemoverDefinition;
+import com.mosaicgem.plugin.model.SocketData;
+import com.mosaicgem.plugin.model.SocketedGem;
+import com.mosaicgem.plugin.model.ToolType;
+import io.papermc.paper.persistence.PersistentDataContainerView;
+import org.bukkit.NamespacedKey;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataAdapterContext;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * 物品工厂：生成工具物品、读写物品组件（custom data）中的镶嵌数据。
+ */
+public class ItemFactory {
+
+    private final MosaicGemPlugin plugin;
+
+    private final NamespacedKey keyItem;
+    private final NamespacedKey keyId;
+    private final NamespacedKey keyValues;
+    private final NamespacedKey keyHoles;
+    private final NamespacedKey keyGems;
+    private final NamespacedKey keyUuid;
+    private final NamespacedKey keyCount;
+
+    public ItemFactory(MosaicGemPlugin plugin) {
+        this.plugin = plugin;
+        this.keyItem = key("item");
+        this.keyId = key("id");
+        this.keyValues = key("values");
+        this.keyHoles = key("holes");
+        this.keyGems = key("gems");
+        this.keyUuid = key("uuid");
+        this.keyCount = key("count");
+    }
+
+    // ------------------------------------------------------------------
+    // 物品生成
+    // ------------------------------------------------------------------
+
+    public ItemStack buildGem(GemDefinition definition, Map<String, String> values) {
+        return build(definition, ToolType.GEM, values);
+    }
+
+    public ItemStack buildPuncher(PuncherDefinition definition) {
+        return build(definition, ToolType.PUNCHER, null);
+    }
+
+    public ItemStack buildRemover(RemoverDefinition definition) {
+        return build(definition, ToolType.REMOVER, null);
+    }
+
+    private ItemStack build(ItemDefinition definition, ToolType type, Map<String, String> values) {
+        ItemStack item = new ItemStack(definition.getMaterial());
+        item.editMeta(meta -> {
+            if (definition.isEnchant()) {
+                meta.setEnchantmentGlintOverride(true);
+            }
+            if (definition.getCustomModelData() != null) {
+                meta.setCustomModelData(definition.getCustomModelData());
+            }
+            meta.setDisplayName(colorize(resolve(definition.getName(), values)));
+            if (!definition.getLore().isEmpty()) {
+                meta.setLore(definition.getLore().stream()
+                        .map(line -> colorize(resolve(line, values)))
+                        .toList());
+            }
+        });
+        markTool(item, type, definition.getId(), values);
+        return item;
+    }
+
+    // ------------------------------------------------------------------
+    // 工具标记与识别
+    // ------------------------------------------------------------------
+
+    public void markTool(ItemStack item, ToolType type, String id, Map<String, String> values) {
+        item.editPersistentDataContainer(pdc -> {
+            pdc.set(keyItem, PersistentDataType.STRING, type.name().toLowerCase(Locale.ROOT));
+            pdc.set(keyId, PersistentDataType.STRING, id);
+            if (values != null && !values.isEmpty()) {
+                pdc.set(keyValues, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), values));
+            }
+        });
+    }
+
+    public ToolType getToolType(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return null;
+        }
+        String value = item.getPersistentDataContainer().get(keyItem, PersistentDataType.STRING);
+        return ToolType.fromString(value);
+    }
+
+    public String getToolId(ItemStack item) {
+        if (item == null) {
+            return null;
+        }
+        return item.getPersistentDataContainer().get(keyId, PersistentDataType.STRING);
+    }
+
+    public Map<String, String> readValues(ItemStack item) {
+        if (item == null) {
+            return Map.of();
+        }
+        PersistentDataContainer container = item.getPersistentDataContainer().get(keyValues, PersistentDataType.TAG_CONTAINER);
+        return container == null ? Map.of() : readMap(container);
+    }
+
+    // ------------------------------------------------------------------
+    // 镶嵌数据读写（孔数 / 宝石列表）
+    // ------------------------------------------------------------------
+
+    public SocketData readSocketData(ItemStack item) {
+        if (item == null) {
+            return new SocketData(0, List.of());
+        }
+        PersistentDataContainerView pdc = item.getPersistentDataContainer();
+        int holes = pdc.getOrDefault(keyHoles, PersistentDataType.INTEGER, 0);
+        List<SocketedGem> gems = new ArrayList<>();
+        PersistentDataContainer[] array = pdc.get(keyGems, PersistentDataType.TAG_CONTAINER_ARRAY);
+        if (array != null) {
+            for (PersistentDataContainer gemContainer : array) {
+                String id = gemContainer.get(keyId, PersistentDataType.STRING);
+                String instanceId = gemContainer.get(keyUuid, PersistentDataType.STRING);
+                if (id == null || instanceId == null) {
+                    continue;
+                }
+                gems.add(new SocketedGem(id, instanceId, readMap(gemContainer.get(keyValues, PersistentDataType.TAG_CONTAINER)), readList(gemContainer)));
+            }
+        }
+        return new SocketData(holes, gems);
+    }
+
+    public void writeSocketData(ItemStack item, int holes, List<SocketedGem> gems) {
+        item.editPersistentDataContainer(pdc -> {
+            if (holes <= 0 && gems.isEmpty()) {
+                pdc.remove(keyHoles);
+                pdc.remove(keyGems);
+                return;
+            }
+            pdc.set(keyHoles, PersistentDataType.INTEGER, Math.max(0, holes));
+            if (gems.isEmpty()) {
+                pdc.remove(keyGems);
+                return;
+            }
+            PersistentDataContainer[] array = new PersistentDataContainer[gems.size()];
+            for (int i = 0; i < gems.size(); i++) {
+                SocketedGem gem = gems.get(i);
+                PersistentDataContainer gemContainer = pdc.getAdapterContext().newPersistentDataContainer();
+                gemContainer.set(keyId, PersistentDataType.STRING, gem.id());
+                gemContainer.set(keyUuid, PersistentDataType.STRING, gem.instanceId());
+                if (!gem.values().isEmpty()) {
+                    gemContainer.set(keyValues, PersistentDataType.TAG_CONTAINER, writeMap(pdc.getAdapterContext(), gem.values()));
+                }
+                if (!gem.lines().isEmpty()) {
+                    writeList(gemContainer, gem.lines());
+                }
+                array[i] = gemContainer;
+            }
+            pdc.set(keyGems, PersistentDataType.TAG_CONTAINER_ARRAY, array);
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Lore 操作
+    // ------------------------------------------------------------------
+
+    public void appendLore(ItemStack item, List<String> lines) {
+        if (lines == null || lines.isEmpty()) {
+            return;
+        }
+        item.editMeta(meta -> {
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            lore.addAll(lines);
+            meta.setLore(lore);
+        });
+    }
+
+    public void removeLoreLines(ItemStack item, List<String> lines) {
+        if (lines == null || lines.isEmpty()) {
+            return;
+        }
+        item.editMeta(meta -> {
+            if (!meta.hasLore()) {
+                return;
+            }
+            List<String> lore = new ArrayList<>(meta.getLore());
+            for (String line : lines) {
+                lore.remove(line);
+            }
+            meta.setLore(lore.isEmpty() ? null : lore);
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // 随机数
+    // ------------------------------------------------------------------
+
+    public Map<String, String> rollRandom(GemDefinition definition) {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : definition.getRandom().entrySet()) {
+            result.put(entry.getKey(), rollValue(entry.getValue()));
+        }
+        return result;
+    }
+
+    private String rollValue(String range) {
+        String trimmed = range.trim();
+        String[] parts = trimmed.split("[~\\-]", 2);
+        if (parts.length != 2) {
+            return trimmed;
+        }
+        double min;
+        double max;
+        try {
+            min = Double.parseDouble(parts[0].trim());
+            max = Double.parseDouble(parts[1].trim());
+        } catch (NumberFormatException e) {
+            return trimmed;
+        }
+        if (max < min) {
+            double temp = min;
+            min = max;
+            max = temp;
+        }
+        int decimals = Math.max(decimalsOf(parts[0]), decimalsOf(parts[1]));
+        double value = min + (max - min) * ThreadLocalRandom.current().nextDouble();
+        return String.format(Locale.ROOT, "%." + decimals + "f", value);
+    }
+
+    private int decimalsOf(String text) {
+        int index = text.indexOf('.');
+        return index < 0 ? 0 : text.length() - index - 1;
+    }
+
+    // ------------------------------------------------------------------
+    // 文本与 PDC 工具
+    // ------------------------------------------------------------------
+
+    public String resolve(String text, Map<String, String> values) {
+        if (text == null) {
+            return null;
+        }
+        String result = text;
+        if (values != null) {
+            for (Map.Entry<String, String> entry : values.entrySet()) {
+                result = result.replace("${" + entry.getKey() + "}", entry.getValue());
+            }
+        }
+        return result;
+    }
+
+    public static String colorize(String text) {
+        return text == null ? null : text.replace('&', '\u00A7');
+    }
+
+    public static String newInstanceId() {
+        return UUID.randomUUID().toString();
+    }
+
+    private NamespacedKey key(String name) {
+        return new NamespacedKey(plugin, name);
+    }
+
+    private PersistentDataContainer writeMap(PersistentDataAdapterContext context, Map<String, String> values) {
+        PersistentDataContainer container = context.newPersistentDataContainer();
+        int index = 0;
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            container.set(key("n" + index), PersistentDataType.STRING, entry.getKey());
+            container.set(key("v" + index), PersistentDataType.STRING, entry.getValue());
+            index++;
+        }
+        container.set(keyCount, PersistentDataType.INTEGER, index);
+        return container;
+    }
+
+    private Map<String, String> readMap(PersistentDataContainer container) {
+        Map<String, String> result = new LinkedHashMap<>();
+        if (container == null) {
+            return result;
+        }
+        int count = container.getOrDefault(keyCount, PersistentDataType.INTEGER, 0);
+        for (int i = 0; i < count; i++) {
+            String name = container.get(key("n" + i), PersistentDataType.STRING);
+            String value = container.get(key("v" + i), PersistentDataType.STRING);
+            if (name != null && value != null) {
+                result.put(name, value);
+            }
+        }
+        return result;
+    }
+
+    private void writeList(PersistentDataContainer container, List<String> lines) {
+        int index = 0;
+        for (String line : lines) {
+            container.set(key("l" + index), PersistentDataType.STRING, line);
+            index++;
+        }
+        container.set(keyCount, PersistentDataType.INTEGER, index);
+    }
+
+    private List<String> readList(PersistentDataContainer container) {
+        List<String> result = new ArrayList<>();
+        if (container == null) {
+            return result;
+        }
+        int count = container.getOrDefault(keyCount, PersistentDataType.INTEGER, 0);
+        for (int i = 0; i < count; i++) {
+            String line = container.get(key("l" + i), PersistentDataType.STRING);
+            if (line != null) {
+                result.add(line);
+            }
+        }
+        return result;
+    }
+}

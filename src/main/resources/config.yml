@@ -1,0 +1,37 @@
+# MosaicGem 主配置
+settings:
+  # 单个物品可拥有的最大孔数（全局上限）
+  max-holes: 6
+  # 交互方式开关
+  interactions:
+    # 铁砧合成
+    anvil: true
+    # 工作台 / 随身合成
+    crafting: true
+    # 拖拽工具到目标物品上
+    drag: true
+  # 打孔 / 拆卸失败时是否消耗工具（true = 失败也消耗，false = 失败不消耗）
+  consume-on-fail: true
+
+messages:
+  prefix: '&8[&6MosaicGem&8] '
+  no-permission: '&c你没有权限执行该指令！'
+  reload-success: '&a配置已重载。'
+  give-usage: '&c用法: /mosaicgem give <gem|puncher|remover> <id> [数量] [玩家]'
+  give-not-found: '&c未找到对应的{type}配置: &f{id}'
+  give-success: '&a已给予 &f{player} &a{amount} 个 &f{id}'
+  player-not-found: '&c找不到玩家: &f{player}'
+  debug-usage: '&c用法: /mosaicgem debug [玩家]'
+  list-usage: '&c用法: /mosaicgem list <gem|puncher|remover>'
+  punch-success: '&a打孔成功！当前孔数: &f{holes}&a/&f{max}'
+  punch-fail: '&c打孔失败！'
+  punch-max: '&c该物品已达到最大打孔数！'
+  socket-success: '&a宝石镶嵌成功！'
+  socket-no-hole: '&c该物品没有可用的孔！'
+  socket-repeat-limit: '&c该宝石已达到可重复镶嵌次数上限！'
+  remove-success: '&a宝石拆卸成功，宝石已返还。'
+  remove-fail: '&c宝石拆卸失败！'
+  remove-empty: '&c该物品没有已镶嵌的宝石！'
+  target-invalid: '&c该物品不能进行此操作！'
+  interaction-disabled: '&c该交互方式已被禁用！'
+  inventory-full: '&e背包已满，返还物品已掉落在地上。'

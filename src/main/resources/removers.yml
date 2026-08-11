@@ -1,0 +1,19 @@
+# 拆卸器配置
+# 内部名:
+#   material / isEnchant / name / lore / custom-model-data: 同上
+#   targetType: 可拆卸的物品类型，不填默认全生效
+#   targetMaterial: 可拆卸的物品id，不填默认全生效
+#   rate: 成功率（0-100）
+
+测试拆卸器:
+  material: PAPER
+  isEnchant: true
+  name: "&c测试拆卸器"
+  lore:
+    - '我是lore描述'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  rate: 10
