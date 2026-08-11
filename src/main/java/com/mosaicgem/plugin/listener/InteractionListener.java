@@ -163,27 +163,32 @@ public class InteractionListener implements Listener {
         }
 
         ItemStack cursor = event.getCursor();
-        ItemStack clicked = event.getCurrentItem();
         boolean cursorIsTool = factory.getToolType(cursor) != null;
-        boolean clickedIsTool = factory.getToolType(clicked) != null;
-        if (!cursorIsTool && !clickedIsTool) {
+        // 只有光标上已经吸附工具时，本次点击才被视为拖拽操作；
+        // 点击工具本身（拾取/换位）或点击空格由原版处理，不拦截、不提示
+        if (!cursorIsTool) {
             return;
         }
-        event.setCancelled(true);
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType().isAir()) {
+            return;
+        }
 
         Player player = (Player) event.getWhoClicked();
-        if (cursorIsTool && clickedIsTool) {
+        if (factory.getToolType(clicked) != null) {
+            event.setCancelled(true);
             send(player, configs.message("invalid-combination"));
             return;
         }
 
-        ItemStack tool = cursorIsTool ? cursor : clicked;
-        ItemStack target = cursorIsTool ? clicked : cursor;
-        GemService.Combo combo = service.findCombo(tool, target);
+        GemService.Combo combo = service.findCombo(cursor, clicked);
         if (combo == null) {
+            event.setCancelled(true);
             send(player, configs.message("tool-config-missing"));
             return;
         }
+        event.setCancelled(true);
 
         OperationResult result = service.perform(combo, player);
         if (!result.consumeTool()) {
@@ -191,13 +196,8 @@ public class InteractionListener implements Listener {
             return;
         }
 
-        if (cursorIsTool) {
-            event.setCursor(null);
-            event.setCurrentItem(result.targetItem());
-        } else {
-            event.setCursor(result.targetItem());
-            event.setCurrentItem(null);
-        }
+        event.setCursor(null);
+        event.setCurrentItem(result.targetItem());
         if (result.returnItem() != null) {
             giveItem(player, result.returnItem());
         }
