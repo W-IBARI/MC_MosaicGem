@@ -108,20 +108,29 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        ItemStack item = switch (type) {
-            case GEM -> factory.buildGem((GemDefinition) definition, factory.rollRandom((GemDefinition) definition));
-            case PUNCHER -> factory.buildPuncher((PuncherDefinition) definition);
-            case REMOVER -> factory.buildRemover((RemoverDefinition) definition);
-        };
-        item.setAmount(Math.max(1, amount));
+        // 宝石逐个生成随机值，即使一口气给多个也各不相同；打孔器/拆卸器无随机值，可保持整组发放
+        List<ItemStack> items = new ArrayList<>();
+        if (type == ToolType.GEM) {
+            for (int i = 0; i < amount; i++) {
+                items.add(factory.buildGem((GemDefinition) definition, factory.rollRandom((GemDefinition) definition)));
+            }
+        } else {
+            ItemStack tool = switch (type) {
+                case PUNCHER -> factory.buildPuncher((PuncherDefinition) definition);
+                case REMOVER -> factory.buildRemover((RemoverDefinition) definition);
+                default -> null;
+            };
+            tool.setAmount(Math.max(1, amount));
+            items.add(tool);
+        }
 
-        Map<Integer, ItemStack> leftover = target.getInventory().addItem(item);
+        Map<Integer, ItemStack> leftover = target.getInventory().addItem(items.toArray(new ItemStack[0]));
         for (ItemStack rest : leftover.values()) {
             target.getWorld().dropItem(target.getLocation(), rest);
         }
         send(sender, configs.message("give-success")
                 .replace("{player}", target.getName())
-                .replace("{amount}", String.valueOf(item.getAmount()))
+                .replace("{amount}", String.valueOf(amount))
                 .replace("{id}", id));
         return true;
     }
