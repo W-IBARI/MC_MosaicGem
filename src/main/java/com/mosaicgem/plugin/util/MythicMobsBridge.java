@@ -258,7 +258,7 @@ public final class MythicMobsBridge extends SoftDependencyBridge {
         ItemStack item;
         if (definition == null) {
             item = new ItemStack(Material.PAPER);
-            item.editMeta(meta -> meta.setDisplayName(ItemFactory.colorize("&c宝石配置缺失: " + gemId)));
+            item.editMeta(meta -> meta.displayName(ItemFactory.text("&c宝石配置缺失: " + gemId)));
         } else {
             item = factory.buildGem(definition, factory.rollRandom(definition));
         }

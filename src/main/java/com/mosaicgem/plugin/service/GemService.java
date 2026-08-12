@@ -244,7 +244,7 @@ public class GemService {
         if (definition == null) {
             plugin.getLogger().warning("拆卸时找不到宝石配置: " + gem.id() + "，已生成占位物品");
             ItemStack fallback = new ItemStack(Material.PAPER);
-            fallback.editMeta(meta -> meta.setDisplayName(ItemFactory.colorize("&c" + gem.id() + "（配置缺失）")));
+            fallback.editMeta(meta -> meta.displayName(ItemFactory.text("&c" + gem.id() + "（配置缺失）")));
             factory.markTool(fallback, ToolType.GEM, gem.id(), gem.values());
             return fallback;
         }

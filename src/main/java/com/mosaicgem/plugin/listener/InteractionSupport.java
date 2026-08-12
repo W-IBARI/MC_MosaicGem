@@ -51,7 +51,7 @@ abstract class InteractionSupport {
         if (message == null || message.isEmpty()) {
             return;
         }
-        player.sendMessage(ItemFactory.colorize(configs.prefix() + message));
+        player.sendMessage(ItemFactory.text(configs.prefix() + message));
     }
 
     /**

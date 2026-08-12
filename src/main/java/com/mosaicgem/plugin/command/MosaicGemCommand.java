@@ -235,7 +235,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                 .replace("{keys}", pdc.getKeys().stream().map(key -> key.getKey()).toList().toString()));
         lines.add(configs.message("debug-end"));
         for (String line : lines) {
-            sender.sendMessage(ItemFactory.colorize(line));
+            sender.sendMessage(ItemFactory.text(line));
         }
         return true;
     }
@@ -683,13 +683,13 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "权限配置: " + e.getMessage()));
         }
 
-        sender.sendMessage(ItemFactory.colorize(configs.message("selftest-title")));
-        sender.sendMessage(ItemFactory.colorize(configs.message("selftest-pass-fail")
+        sender.sendMessage(ItemFactory.text(configs.message("selftest-title")));
+        sender.sendMessage(ItemFactory.text(configs.message("selftest-pass-fail")
                 .replace("{ok}", String.valueOf(ok))
                 .replace("{fail}", String.valueOf(fail))));
         if (fail > 0) {
             for (String line : lines) {
-                sender.sendMessage(ItemFactory.colorize(line));
+                sender.sendMessage(ItemFactory.text(line));
             }
         }
         return true;
@@ -779,7 +779,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         if (message == null || message.isEmpty()) {
             return;
         }
-        sender.sendMessage(ItemFactory.colorize(configs.prefix() + message));
+        sender.sendMessage(ItemFactory.text(configs.prefix() + message));
     }
 
     private record GiveMatch(ToolType type, ItemDefinition definition) {

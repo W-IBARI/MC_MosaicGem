@@ -14,8 +14,8 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -37,16 +37,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 物品工厂：生成工具物品、读写物品组件（custom data）中的镶嵌数据。
  */
 public class ItemFactory {
 
-    /** 配置模板中的十六进制颜色标记，如 <#FFAA00>（也兼容 8 位 <#RRGGBBAA>） */
-    private static final Pattern HEX_TAG = Pattern.compile("<#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?>");
 
     /** 宝石加成方式：SX 属性（写入 lore，由 SX-Attribute 读取） */
     public static final String BUFF_TYPE_SX = "sx_attribute";
@@ -318,56 +314,203 @@ public class ItemFactory {
         });
     }
 
-    public static Component toComponent(String line) {
+            public static Component toComponent(String line) {
         String colored = colorize(line);
         int markerIndex = colored.indexOf("\u00A7X");
+        Component result;
         if (markerIndex < 0) {
-            // 原样保留原始行文本（如行首的 §r、§x 十六进制色），
-            // 避免 legacy 解析后行首 §r 被序列化丢弃导致格式回退
-            return parseStyledText(colored);
+            result = text(colored);
+        } else {
+            // 标记前后的文本都走完整解析（支持 &/§ 与 MiniMessage 渐变），标记本身保持字面文本
+            Component prefix = text(colored.substring(0, markerIndex));
+            Component suffix = text(colored.substring(markerIndex + 2));
+            result = prefix.append(Component.text(colored.substring(markerIndex, markerIndex + 2))).append(suffix);
+            result = applyDefaultItalic(result);
         }
-        // 标记前的原始文本同样原样保留
-        Component prefix = parseStyledText(colored.substring(0, markerIndex));
-        Component suffix = parseStyledText(colored.substring(markerIndex + 2));
-        // 客户端 lore 默认样式为斜体；模板未显式指定斜体时强制关闭，保证默认正体
-        if (suffix.style().decoration(TextDecoration.ITALIC) != TextDecoration.State.TRUE) {
-            suffix = suffix.decoration(TextDecoration.ITALIC, false);
+        return result;
+    }
+
+    /** MiniMessage 解析器（支持 <#RRGGBB>、<gradient:...> 等语法） */
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
+
+    /**
+     * 插件统一的文本解析入口：支持传统 &/§ 颜色代码、<#RRGGBB> 十六进制颜色，
+     * 以及 MiniMessage 语法（<gradient:...>、<italic>、<underlined>、<strikethrough> 等）。
+     * 未显式指定斜体的部分默认强制正体。
+     */
+    public static Component text(String text) {
+        if (text == null || text.isEmpty()) {
+            return Component.empty();
         }
-        return prefix.append(Component.text(colored.substring(markerIndex, markerIndex + 2))).append(suffix);
+        try {
+            return applyDefaultItalic(MINI_MESSAGE.deserialize(legacyToMiniMessage(text)));
+        } catch (Exception e) {
+            return applyDefaultItalic(Component.text(text));
+        }
     }
 
     /**
-     * 解析配置模板中的 <#RRGGBB> 十六进制颜色：
-     * - 普通段落按字面文本保留（§ 代码交给客户端解析）
-     * - 颜色标记后的段落应用真实 TextColor，支持连续多个颜色切换
+     * 递归地把“未显式设置斜体”的节点补成 false，显式 <italic>/&o 保持 true。
      */
-    private static Component parseStyledText(String text) {
-        if (text == null || text.isEmpty() || text.indexOf("<#") < 0) {
-            return Component.text(text == null ? "" : text);
+    private static Component applyDefaultItalic(Component component) {
+        Component result = component;
+        if (component.style().decoration(TextDecoration.ITALIC) == TextDecoration.State.NOT_SET) {
+            result = result.decoration(TextDecoration.ITALIC, false);
         }
-        Component root = Component.empty();
-        Matcher matcher = HEX_TAG.matcher(text);
-        int last = 0;
-        TextColor pending = null;
-        while (matcher.find()) {
-            if (matcher.start() > last) {
-                root = root.append(applyColor(Component.text(text.substring(last, matcher.start())), pending));
+        List<Component> children = result.children();
+        if (!children.isEmpty()) {
+            List<Component> mapped = new ArrayList<>();
+            for (Component child : children) {
+                mapped.add(applyDefaultItalic(child));
             }
-            pending = TextColor.fromHexString("#" + matcher.group(1));
-            last = matcher.end();
+            result = result.children(mapped);
         }
-        if (last < text.length()) {
-            root = root.append(applyColor(Component.text(text.substring(last)), pending));
-        } else if (pending != null) {
-            // 颜色标记位于行尾：补一个空彩色组件，保证颜色状态被记录
-            root = root.append(Component.text("").color(pending));
-        }
-        return root;
+        return result;
     }
 
-    private static Component applyColor(Component component, TextColor color) {
-        return color == null ? component : component.color(color);
+    /**
+     * 把传统颜色代码转换为 MiniMessage 标签：
+     * &0-&f、&k&l&m&n&o&r、&x 十六进制（&x&F&F&A&A&0&0）、<#RRGGBB>。
+     */
+    private static String legacyToMiniMessage(String text) {
+        String converted = text.replaceAll("<#([0-9a-fA-F]{6})>", "<color:#$1>");
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        int len = converted.length();
+        while (i < len) {
+            char c = converted.charAt(i);
+            if (c == '&' || c == '\u00A7') {
+                if (i + 1 >= len) {
+                    sb.append(c);
+                    i++;
+                    continue;
+                }
+                char code = Character.toLowerCase(converted.charAt(i + 1));
+                switch (code) {
+                    case '0' -> sb.append("<black>");
+                    case '1' -> sb.append("<dark_blue>");
+                    case '2' -> sb.append("<dark_green>");
+                    case '3' -> sb.append("<dark_aqua>");
+                    case '4' -> sb.append("<dark_red>");
+                    case '5' -> sb.append("<dark_purple>");
+                    case '6' -> sb.append("<gold>");
+                    case '7' -> sb.append("<gray>");
+                    case '8' -> sb.append("<dark_gray>");
+                    case '9' -> sb.append("<blue>");
+                    case 'a' -> sb.append("<green>");
+                    case 'b' -> sb.append("<aqua>");
+                    case 'c' -> sb.append("<red>");
+                    case 'd' -> sb.append("<light_purple>");
+                    case 'e' -> sb.append("<yellow>");
+                    case 'f' -> sb.append("<white>");
+                    case 'k' -> sb.append("<obfuscated>");
+                    case 'l' -> sb.append("<bold>");
+                    case 'm' -> sb.append("<strikethrough>");
+                    case 'n' -> sb.append("<underlined>");
+                    case 'o' -> sb.append("<italic>");
+                    case 'r' -> sb.append("<reset>");
+                    case 'x' -> {
+                        int j = i + 2;
+                        StringBuilder hex = new StringBuilder("#");
+                        int read = 0;
+                        while (j < len && read < 6) {
+                            char h = converted.charAt(j);
+                            if (h == '&' || h == '\u00A7') {
+                                j++;
+                                continue;
+                            }
+                            if (isHexDigit(h)) {
+                                hex.append(h);
+                                read++;
+                            }
+                            j++;
+                        }
+                        if (read == 6) {
+                            sb.append("<color:").append(hex).append(">");
+                            i = j;
+                            continue;
+                        }
+                        sb.append("<reset>");
+                    }
+                    default -> sb.append(c);
+                }
+                i += 2;
+            } else {
+                sb.append(c);
+                i++;
+            }
+        }
+        return escapeInvalidTags(shortTagAliases(sb.toString()));
     }
+
+    /** MiniMessage 短标签别名统一为全名（兼容 <i>/<u>/<st>/<b>/<obf>） */
+    private static String shortTagAliases(String text) {
+        String s = text;
+        s = s.replace("<i>", "<italic>").replace("</i>", "</italic>");
+        s = s.replace("<u>", "<underlined>").replace("</u>", "</underlined>");
+        s = s.replace("<st>", "<strikethrough>").replace("</st>", "</strikethrough>");
+        s = s.replace("<b>", "<bold>").replace("</b>", "</bold>");
+        s = s.replace("<obf>", "<obfuscated>").replace("</obf>", "</obfuscated>");
+        return s;
+    }
+
+    /** 把不是合法 MiniMessage 标签的 <...> 转义为字面文本（避免 <id> 这类用法被误解析） */
+    private static String escapeInvalidTags(String text) {
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == '<') {
+                int end = text.indexOf('>', i + 1);
+                if (end > i) {
+                    String body = text.substring(i + 1, end);
+                    if (isValidTag(body)) {
+                        sb.append('<').append(body).append('>');
+                        i = end + 1;
+                        continue;
+                    }
+                }
+                sb.append("\\<");
+                i++;
+            } else {
+                sb.append(c);
+                i++;
+            }
+        }
+        return sb.toString();
+    }
+
+    private static boolean isValidTag(String body) {
+        if (body.isEmpty()) {
+            return false;
+        }
+        if (body.charAt(0) == '#') {
+            return body.length() == 7 && body.substring(1).matches("[0-9a-fA-F]{6}");
+        }
+        if (body.charAt(0) == '/') {
+            return body.length() > 1 && body.substring(1).matches("[a-zA-Z][a-zA-Z0-9_]*");
+        }
+        int colon = body.indexOf(':');
+        String name = colon > 0 ? body.substring(0, colon) : body;
+        if (!name.matches("[a-zA-Z][a-zA-Z0-9_]*")) {
+            return false;
+        }
+        return KNOWN_TAGS.contains(name);
+    }
+
+    private static final Set<String> KNOWN_TAGS = Set.of(
+            "color", "gradient", "rainbow", "transition", "hover", "click", "keybind", "insertion",
+            "newline", "selector", "score", "nbt", "translatable", "font", "reset",
+            "bold", "italic", "underlined", "strikethrough", "obfuscated",
+            "black", "dark_blue", "dark_green", "dark_aqua", "dark_red", "dark_purple",
+            "gold", "gray", "dark_gray", "blue", "green", "aqua", "red", "light_purple", "yellow", "white"
+    );
+
+    private static boolean isHexDigit(char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    }
+
+
 
     // ------------------------------------------------------------------
     // 镶嵌信息 lore（孔位/宝石提示）
