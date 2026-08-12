@@ -373,11 +373,15 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             attributeLoreService.update(sword, List.of(gem));
             factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem)), configs.socketLore());
             Component mergedComponent = sword.lore().stream()
-                    .filter(line -> LegacyComponentSerializer.legacySection().serialize(line).contains("（+20"))
+                    .filter(line -> ItemFactory.stripLoreText(
+                            LegacyComponentSerializer.legacySection().serialize(line)).contains("（+20"))
                     .findFirst()
                     .orElse(null);
             if (mergedComponent == null || !hasItalicFalse(mergedComponent)) {
-                throw new IllegalStateException("合并行未显式关闭斜体");
+                String serialized = mergedComponent == null
+                        ? "null"
+                        : LegacyComponentSerializer.legacySection().serialize(mergedComponent);
+                throw new IllegalStateException("合并行未显式关闭斜体: " + serialized);
             }
             java.util.function.Function<String, String> escape = s -> s.replace("\u00A7", "\\u00A7").replace("\u200B", "\\u200B");
             List<String> resultLore = sword.getItemMeta().getLore();
@@ -390,7 +394,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             boolean resetAttackSpeed = resultLore.get(2).contains("\u00A7r");
             boolean italicOther = resultLore.get(3).contains("\u00A7o");
             boolean boldOther = resultLore.get(4).contains("\u00A7l");
-            if (!mergedLine.contains("33.90") || !mergedLine.contains("（+20") || !hasMarker
+            if (!mergedLine.contains("33.90") || !ItemFactory.stripLoreText(mergedLine).contains("（+20") || !hasMarker
                     || !resetMainHand || !resetAttribute || !resetAttackSpeed || !italicOther || !boldOther) {
                 throw new IllegalStateException("属性合并失败: marker=" + hasMarker + " sectionX=" + hasSectionX
                         + " zw=" + hasZw + " resetMainHand=" + resetMainHand + " resetAttribute=" + resetAttribute
@@ -401,7 +405,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             attributeLoreService.update(sword, List.of(gem));
             factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem)), configs.socketLore());
             String mergedLine2 = sword.getItemMeta().getLore().get(1);
-            if (!mergedLine2.contains("33.90") || !mergedLine2.contains("（+20")) {
+            if (!mergedLine2.contains("33.90") || !ItemFactory.stripLoreText(mergedLine2).contains("（+20")) {
                 throw new IllegalStateException("属性重复合并异常: " + escape.apply(mergedLine2));
             }
 
@@ -423,7 +427,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
                     .count();
             String secondLine = loreAfterSecond.get(1);
             if (attackLines != 1 || holeLines != 1 || gemLines != 2
-                    || !secondLine.contains("53.90") || !secondLine.contains("（+40.00")) {
+                    || !secondLine.contains("53.90") || !ItemFactory.stripLoreText(secondLine).contains("（+40.00")) {
                 throw new IllegalStateException("第二颗宝石合并异常: attackLines=" + attackLines
                         + " holeLines=" + holeLines + " gemLines=" + gemLines
                         + " lore=" + loreAfterSecond.stream().map(escape).toList());
@@ -436,7 +440,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             long gemLinesAfterRemove = sword.getItemMeta().getLore().stream()
                     .filter(line -> ItemFactory.stripLoreText(line).startsWith("宝石"))
                     .count();
-            if (!afterRemove.contains("33.90") || !afterRemove.contains("（+20") || gemLinesAfterRemove != 1) {
+            if (!afterRemove.contains("33.90") || !ItemFactory.stripLoreText(afterRemove).contains("（+20")
+                    || gemLinesAfterRemove != 1) {
                 throw new IllegalStateException("取下宝石后合并异常: gemLines=" + gemLinesAfterRemove
                         + " lore=" + sword.getItemMeta().getLore().stream().map(escape).toList());
             }
@@ -615,6 +620,47 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         } catch (Exception e) {
             fail++;
             lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "颜色模板: " + e.getMessage()));
+        }
+
+        try {
+            // 完整往返：带 §X 标记与 <#RRGGBB> 的合并行写入物品后，颜色必须保留为 §x 十六进制码
+            ItemStack colorRoundTrip = new ItemStack(Material.IRON_SWORD);
+            factory.setLore(colorRoundTrip, List.of(
+                    "攻击力：33.90\u00A7X&r<#FFAA00>（<#1EFF5C>+20<#FFAA00>）"
+            ));
+            String legacy = colorRoundTrip.getItemMeta().getLore().get(0);
+            if (legacy.contains("<#") || !legacy.contains("\u00A7x")) {
+                throw new IllegalStateException("合并行颜色在物品序列化后丢失: " + legacy);
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "颜色往返: " + e.getMessage()));
+        }
+
+        try {
+            // 真实配置往返：若策划在 bonus-format 中配置了 <#RRGGBB>，合并后的物品 lore 必须保留为 §x 颜色码
+            String bonusFormat = configs.sxAttributeLore().bonusFormat();
+            if (bonusFormat.contains("<#")) {
+                ItemStack mergedSword = new ItemStack(Material.IRON_SWORD);
+                mergedSword.editMeta(meta -> meta.lore(List.of(Component.text("攻击力：13.90"))));
+                Map<String, String> bonusValues = new LinkedHashMap<>();
+                bonusValues.put("random_value", "20.00");
+                SocketedGem bonusGem = new SocketedGem("SA测试宝石", "hex-bonus-uuid", bonusValues, List.of());
+                SxAttributeLoreService loreService = new SxAttributeLoreService(configs, factory);
+                loreService.update(mergedSword, List.of(bonusGem));
+                String mergedLegacy = mergedSword.getItemMeta().getLore().stream()
+                        .filter(line -> line.contains("攻击力"))
+                        .findFirst()
+                        .orElse("");
+                if (mergedLegacy.contains("<#") || !mergedLegacy.contains("\u00A7x")) {
+                    throw new IllegalStateException("bonus-format 颜色在合并后丢失: " + mergedLegacy);
+                }
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "配置颜色: " + e.getMessage()));
         }
 
         try {

@@ -16,6 +16,7 @@ import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
@@ -285,17 +286,6 @@ public class ItemFactory {
     // Lore 操作
     // ------------------------------------------------------------------
 
-    public void appendLore(ItemStack item, List<String> lines) {
-        if (lines == null || lines.isEmpty()) {
-            return;
-        }
-        List<String> lore = item.getItemMeta() != null && item.getItemMeta().hasLore()
-                ? new ArrayList<>(item.getItemMeta().getLore())
-                : new ArrayList<>();
-        lore.addAll(lines);
-        setLore(item, lore);
-    }
-
     public void removeLoreLines(ItemStack item, List<String> lines) {
         if (lines == null || lines.isEmpty()) {
             return;
@@ -308,19 +298,6 @@ public class ItemFactory {
             lore.remove(line);
         }
         setLore(item, lore);
-    }
-
-    /**
-     * 移除所有以镶嵌信息标记开头的 lore 行。
-     */
-    public void removeSocketLines(ItemStack item) {
-        if (item.getItemMeta() == null || !item.getItemMeta().hasLore()) {
-            return;
-        }
-        List<String> lore = new ArrayList<>(item.getItemMeta().getLore());
-        if (lore.removeIf(line -> line.startsWith(SOCKET_MARKER))) {
-            setLore(item, lore);
-        }
     }
 
     /**
@@ -409,13 +386,17 @@ public class ItemFactory {
 
     /**
      * 更新装备上的镶嵌信息 lore：先移除旧信息，再按模版写入新信息。
+     * 直接基于组件操作，避免把已有 lore 转成 legacy 字符串再重写，
+     * 从而保留属性合并行的真实颜色/格式结构。
      */
     public void applySocketLore(ItemStack item, SocketData data, SocketLoreTemplate template) {
-        // 移除旧的镶嵌信息：新格式按行首标记移除，旧格式按 PDC 记录的原行移除（迁移）
-        removeSocketLines(item);
+        List<Component> lore = item.lore() == null ? new ArrayList<>() : new ArrayList<>(item.lore());
+        // 移除旧的镶嵌信息：新格式按行首标记移除
+        lore.removeIf(line -> LegacyComponentSerializer.legacySection().serialize(line).startsWith(SOCKET_MARKER));
+        // 旧格式按 PDC 记录的原行移除（迁移）
         List<String> oldLines = readSocketLines(item);
         if (!oldLines.isEmpty()) {
-            removeLoreLines(item, oldLines);
+            lore.removeIf(line -> oldLines.contains(LegacyComponentSerializer.legacySection().serialize(line)));
         }
 
         List<String> newLines = new ArrayList<>();
@@ -461,9 +442,16 @@ public class ItemFactory {
             }
         }
 
-        if (!newLines.isEmpty()) {
-            appendLore(item, newLines);
+        for (String line : newLines) {
+            lore.add(toComponent(line));
         }
+        item.editMeta(meta -> {
+            if (lore.isEmpty()) {
+                meta.lore(null);
+            } else {
+                meta.lore(lore);
+            }
+        });
         writeSocketLines(item, newLines);
     }
 

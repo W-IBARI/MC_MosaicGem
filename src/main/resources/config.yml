@@ -46,7 +46,6 @@ sx-attribute-lore:
   # 额外需要识别的属性名（宝石配置里的 attribute 会自动收集，一般不需要填）
   names: []
   # 宝石属性在物品上没有对应行时，追加的新属性行模版
-  # 注意：如果服务端 lore 是传统字符串，<#XXXXXX> 会原样显示，建议改用 §x 十六进制或纯颜色代码
   new-line: '&r&f{name}：&e{value}'
   # 加成标注格式（跟在数值后）
   bonus-format: '&r（+{bonus}）'
