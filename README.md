@@ -2,6 +2,8 @@
 
 [English](README_EN.md) | [中文](README.md)
 
+<p align="center"><img src="MosaicGem_Icon.png" width="256" alt="MosaicGem"></p>
+
 Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性支持 **SX-Attribute（lore 合并）**、**原版属性（AttributeModifier）**、**附魔（原版附魔 / CrazyEnchantments 自定义附魔）** 与 **MythicMobs 技能/掉落**，适配 **Folia 26.2 / Java Edition 26.2**。
 
 > 本插件使用 DeepSeek V4 Flash 开发：作者仅设计系统框架并负责功能测试与调优，不参与代码细节设计。
@@ -50,7 +52,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 ### 镶嵌
 
 - 目标装备必须已有孔位，且已镶嵌数量未达到孔数上限
-- 宝石生成时按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
+- 宝石生成时，按照配置的值生成，同时支持随机数配置：按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
 - 同一种宝石可按 `repetitions` 限制重复镶嵌次数（不填为无上限）
 - `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（按配置的触发器发动 MythicMobs 技能，默认挥动），其他类型会拦截镶嵌并提示
 - `sx_attribute` 属性面板合并规则：
