@@ -1,11 +1,13 @@
 # MosaicGem
 
+[English](README_EN.md) | [中文](README.md)
+
 Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性支持 **SX-Attribute（lore 合并）**、**原版属性（AttributeModifier）**、**附魔（原版附魔 / CrazyEnchantments 自定义附魔）** 与 **MythicMobs 技能/掉落**，适配 **Folia 26.2 / Java Edition 26.2**。
 
 ## 功能特性
 
 - **装备打孔**：使用打孔器为装备添加孔位，成功率与双维度孔数上限可配置
-- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石在攻击时按 MythicMobs 规则发动技能
+- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石按配置的触发器（默认挥动）发动 MythicMobs 技能
 - **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
@@ -48,7 +50,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 - 目标装备必须已有孔位，且已镶嵌数量未达到孔数上限
 - 宝石生成时按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
 - 同一种宝石可按 `repetitions` 限制重复镶嵌次数（不填为无上限）
-- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（攻击时发动 MythicMobs 技能），其他类型会拦截镶嵌并提示
+- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（按配置的触发器发动 MythicMobs 技能，默认挥动），其他类型会拦截镶嵌并提示
 - `sx_attribute` 属性面板合并规则：
   - 物品原有属性行与所有宝石同类数值求和，显示为 `总值（+加成）`，如 `攻击力：33.90（+20）`
   - 宝石独有的属性自动追加新属性行
@@ -71,13 +73,13 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 ### MythicCrucible 物品技能（mythicmobs_skill）
 
-[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) 是 MythicMobs 的物品扩展，其物品技能格式为 `- skill:技能名 @触发器`。MosaicGem 的 `mythicmobs_skill` 宝石沿用同一格式：
+[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) 是 MythicMobs 的物品扩展，其物品技能格式为 `- skill:技能名 @触发器`。MosaicGem 的 `mythicmobs_skill` 宝石沿用类似格式：
 
 ```yaml
 MM技能测试宝石:
   buffType: 'mythicmobs_skill'
   attribute:
-    - 'TestSkill @onSwing'   # 挥动时施放 TestSkill
+    - 'TestSkill @onSwing'   # 挥动时施放 MythicMobs 技能：TestSkill
     - 'Heal @onUse'          # 右键使用时施放 Heal（需要 MythicCrucible）
 ```
 
@@ -96,7 +98,7 @@ Drops:
 
 - `mosaicgem` 后的参数为宝石内部名（与 `/mosaicgem give` 使用的 id 一致），也可用 `{id=宝石名}` 或 `{gem=宝石名}` 指定
 - 掉落数量与概率沿用 MythicMobs 的掉落语法（数量、概率列）
-- 掉落的宝石会按宝石配置随机生成数值
+- 掉落的宝石会按宝石配置随机生成数值（如宝石本身配置了随机生成数值的部分）
 
 ### 拆卸
 
@@ -185,7 +187,7 @@ commands:
 - 未在文件中配置的指令回退到内置默认节点与默认权限级（`op`）
 - 使用 LuckPerms 等权限插件时无需任何额外适配：直接给玩家/用户组分配这里配置的节点即可覆盖默认权限级（如 `/lp user <玩家> permission set mosaicgem.reload true`），Bukkit 的标准权限系统会自动交给 LuckPerms 判定
 
-#### socket-lore：装备上的镶嵌信息（三种模式共用）
+#### socket-lore：装备上的镶嵌信息（所有 buffType 共用）
 
 打孔/镶嵌/拆卸成功后自动更新，展示孔位与宝石：
 
@@ -217,7 +219,7 @@ socket-lore:
 
 #### sx-attribute-lore：SX-Attribute 属性面板合并（仅作用于 `buffType: sx_attribute` 的宝石）
 
-把 `sx_attribute` 宝石的属性合并进装备 lore 属性行，由 SX-Attribute 读取；`vanilla_attribute` 与 `enchant` 宝石不使用本段配置。
+把 `sx_attribute` 宝石的属性合并进装备 lore 属性行，由 SX-Attribute 读取；其他类型宝石不使用本段配置。
 
 ```yaml
 sx-attribute-lore:

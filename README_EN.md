@@ -1,0 +1,450 @@
+# MosaicGem
+
+[English](README_EN.md) | [中文](README.md)
+
+A Minecraft server gem socketing plugin. It supports **equipment punching (adding sockets), gem socketing, and gem removal**, with attribute support for **SX-Attribute (lore merging)**, **vanilla attributes (AttributeModifier)**, **enchantments (vanilla / CrazyEnchantments custom enchants)** and **MythicMobs skills/drops**. Built for **Folia 26.2 / Java Edition 26.2**.
+
+## Features
+
+- **Equipment punching**: use a puncher to add sockets to equipment; success rate and two-dimensional socket limits are configurable
+- **Gem socketing**: gems carry random values. `sx_attribute` gems merge into the equipment attribute panel and are read by SX-Attribute; `vanilla_attribute` gems apply directly as vanilla attribute modifiers; `enchant` gems add/stack vanilla enchantments; `mythicmobs_skill` gems cast MythicMobs skills on the configured trigger (swing by default)
+- **Gem removal**: removed gems are returned with their original random values, and the equipment attribute panel is restored automatically
+- **Attribute panel merging**: an existing `攻击力：13.90` line plus a +20 gem becomes `攻击力：33.90（+20）`; attributes that only exist on the gem are appended as new lines
+- **Three interaction methods**: anvil, crafting (2x2 inventory or workbench), and dragging a tool onto the target item — each can be toggled independently
+- **Full player feedback**: every blocked or failed interaction notifies the player; messages are split into per-language files under `messages/`
+- **Admin commands**: reload, give, debug, list, and self-test
+- **Format preservation**: socketing/punching does not break existing lore colors, italics, bold, or other formatting
+
+## Requirements
+
+- Server: Folia 26.2 (Java Edition 26.2)
+- Java: JDK 25+
+- Optional dependencies: [SX-Attribute-Folia (26.2 optimized build)](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) (required for `sx_attribute` gems, plus its dependency [SX-Item](https://github.com/Saukiya/SX-Item)); [CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/) (required for `ce:` custom enchants); [MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs) (required for `mythicmobs_skill` gems and gem drops); [MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) (optional, enables multiple skill triggers for `mythicmobs_skill` gems)
+
+> The original SX-Attribute repository does not support 26.2 yet, so MosaicGem recommends the [26.2 optimized build](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) provided by W-IBARI/SX-Attribute-Folia-fixed.
+>
+> MythicMobs is also a soft dependency: without it, `mythicmobs_skill` gems and custom gem drops are unavailable; everything else keeps working.
+
+## Installation
+
+1. Build the plugin (see "Building" below) or use a released jar
+2. Put `MosaicGem-*.jar` into the server's `plugins` folder
+3. For `sx_attribute` gems, also install `SX-Item` and `SX-Attribute` (26.2 optimized build)
+4. Start the server. The plugin generates `config.yml`, `messages/zh_cn.yml`, `messages/en_us.yml`, `items/gems.yml`, `items/punchers.yml`, and `items/removers.yml` automatically
+5. Edit the configuration as needed and run `/mosaicgem reload`
+
+## Gameplay
+
+### Punching
+
+- Interact with a puncher and the target equipment (anvil / crafting / drag)
+- Success: equipment sockets +1, one puncher is consumed
+- Failure: one puncher is consumed; the equipment and socketed gems are unaffected
+- `rate` is a percentage (0-100)
+- Socket limits have two dimensions; either one blocks the operation with a message:
+  - **Global limit**: total sockets from all sources cannot exceed `settings.max-holes`
+  - **Source limit**: one puncher type cannot contribute more sockets than its `holesnum`
+
+### Socketing
+
+- The target must already have sockets, and the socketed count must be below the socket limit
+- Gems roll random values at creation time from `random` and keep them for that instance; each gem in a bulk give is independent
+- The same gem can be socketed multiple times according to `repetitions` (unlimited if omitted)
+- `buffType` supports `sx_attribute` (lore read by SX-Attribute), `vanilla_attribute` (vanilla attribute modifiers), `enchant` (add/stack enchantments) and `mythicmobs_skill` (cast MythicMobs skills on the configured trigger, swing by default); other types are blocked with a message
+- `sx_attribute` merging rules:
+  - The item's existing attribute line and all gems of the same attribute are summed and shown as `total（+bonus）`, e.g. `攻击力：33.90（+20）`
+  - Attributes that only exist on gems are appended as new lines
+  - Decimal places: a single gem strips trailing zeros (`+20`); multiple gems use the largest decimal count among them (`+40.00`)
+  - The bonus text is isolated by the `§X` marker so SX-Attribute only reads the pure total and never counts `（+20）`
+- `vanilla_attribute` merging rules:
+  - Multiple gems of the same attribute merge into one AttributeModifier; the tooltip shows a single total (e.g. two gems totaling +11 → `装备时：攻击力 +11`)
+  - The item's existing ADD_NUMBER modifiers of the same attribute are merged into the total and shown as an increase over the original value
+  - Merged native modifiers are stored in the item data and restored automatically when gems are removed
+- `enchant` stacking rules:
+  - If the target already has the enchant, the final level = original level + gem total (e.g. `锋利 III` + +2 → `锋利 V`); otherwise the enchant is created at the gem level
+  - Multiple gems of the same enchant are summed and written once
+  - Native enchant levels are stored in the item data and restored when all gems are removed
+  - Vanilla enchant ids use the `minecraft:` prefix (e.g. `minecraft:sharpness`); with CrazyEnchantments installed, `ce:` ids (e.g. `ce:Wither`) can also be socketed
+- `mythicmobs_skill` rules:
+  - Each attribute line declares a MythicMobs skill name using the MythicCrucible item-skill format: `技能名 @触发器` (e.g. `TestSkill @onSwing`); the default trigger is `@onSwing`
+  - With [MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) installed, triggers are fully handled by Crucible's item-skill system (`SWING` / `USE` / `RIGHTCLICK` etc.); the plugin only casts the skill from the gem config. Cooldowns, conditions, and target selection are handled by MythicMobs
+  - Without MythicCrucible, it falls back to the built-in melee-attack trigger (only `@onSwing` / `@onAttack` / `@onHit` work)
+  - The socket info shows the skill name (e.g. `TestSkill`) without the trigger suffix
+
+### MythicCrucible item skills (`mythicmobs_skill`)
+
+[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) is MythicMobs' item extension; its item-skill format is `- skill:技能名 @触发器`. MosaicGem's `mythicmobs_skill` gems use a similar format:
+
+```yaml
+MM技能测试宝石:
+  buffType: 'mythicmobs_skill'
+  attribute:
+    - 'TestSkill @onSwing'   # Casts MythicMobs skill TestSkill on swing
+    - 'Heal @onUse'          # Casts Heal on right-click use (requires MythicCrucible)
+```
+
+- Common trigger names (case-insensitive, `on` prefix optional): `onSwing` / `SWING`, `onUse` / `USE`, `onRightClick` / `RIGHTCLICK`, `onShoot` / `SHOOT`, `onJump` / `JUMP`, etc.
+- Without MythicCrucible, only `onSwing` (plus `onAttack` / `onHit`) works; other triggers are ignored
+
+### MythicMobs gem drops
+
+With MythicMobs installed, use the custom drop type `mosaicgem` in a mob's `Drops` to drop plugin gems:
+
+```yaml
+Drops:
+- mosaicgem:附魔测试宝石 1 0.5
+- mosaicgem{id=SA测试宝石} 1 0.2
+```
+
+- The argument after `mosaicgem` is the gem's internal id (the same id used by `/mosaicgem give`); `{id=宝石名}` or `{gem=宝石名}` also works
+- Drop amount and chance follow MythicMobs' normal drop syntax (amount and chance columns)
+- Dropped gems are rolled according to the gem config (if the gem has random values)
+
+### Removal
+
+- Interact with a remover on equipment that has socketed gems; success removes the last socketed gem
+- The gem is returned with its original random values (inventory first, dropped on the ground if the inventory is full)
+- The attribute panel is restored: `sx_attribute` lines return to their original values and gem-only lines are removed; `vanilla_attribute` modifiers are rebuilt from the remaining gems and merged natives are restored; `enchant` levels are rebuilt and native levels restored
+- Failure consumes one remover; the equipment and remaining gems are unaffected
+
+### Tool consumption and stacking
+
+- One action consumes one tool; the rest stays on the cursor/in the slot for continued use
+- Clicking another tool while holding a tool on the cursor is left to vanilla (merge/swap) and is not intercepted
+- Creative and survival modes behave identically
+
+### Interaction methods
+
+| Method | Action |
+| --- | --- |
+| Anvil | Put equipment on one side and the tool on the other (either order), preview in the result slot, click the result to finish |
+| Crafting | Place 1 tool + 1 target equipment in the 2x2 inventory or workbench grid, click the result |
+| Drag | Left-click the tool to pick it up, then click the target equipment in the inventory |
+
+All three methods can be toggled in `config.yml` under `settings.interactions`.
+
+## Commands & Permissions
+
+| Command | Description | Default permission node (editable in permissions.yml) |
+| --- | --- | --- |
+| `/mosaicgem reload` | Reload all config files (missing yml files are re-created) | `mosaicgem.reload` (default OP) |
+| `/mosaicgem give <id> [amount] [player]` | Give gems/punchers/removers (type is auto-detected) | `mosaicgem.give` (default OP) |
+| `/mosaicgem debug [player]` | Inspect sockets, gems, attribute lines, etc. | `mosaicgem.debug` (default OP) |
+| `/mosaicgem list <gem\|puncher\|remover>` | List configured items | `mosaicgem.list` (default OP) |
+| `/mosaicgem selftest` | Environment-free self-test: config parsing, item generation, data read/write, attribute merging | `mosaicgem.debug` (default OP) |
+
+Aliases: `/mg`, `/mgem`.
+
+## Configuration Files
+
+Config files live in `plugins/MosaicGem/` and are generated on first startup; edit them and run `/mosaicgem reload` to hot-reload.
+
+### config.yml
+
+```yaml
+settings:
+  language: zh_cn          # message language: zh_cn / en_us
+  max-holes: 6             # global socket hard limit (sum of all sources)
+  interactions:
+    anvil: true            # anvil crafting
+    crafting: true         # workbench / 2x2 crafting
+    drag: true             # drag tool onto target item
+```
+
+### permissions.yml: command permissions
+
+`permissions.yml` in the plugin root defines the permission nodes required by each command (no more hardcoding):
+
+```yaml
+commands:
+  reload:
+    default-level: op
+    permissions:
+      - mosaicgem.reload
+  give:
+    default-level: op
+    permissions:
+      - mosaicgem.give
+  debug:
+    default-level: op
+    permissions:
+      - mosaicgem.debug
+  list:
+    default-level: op
+    permissions:
+      - mosaicgem.list
+  selftest:
+    default-level: op
+    permissions:
+      - mosaicgem.debug
+```
+
+- Each command accepts multiple nodes; any one of them grants access
+- `default-level` is the fallback when the player has no granted node:
+  - `op`: OP or above only (**default**; every command defaults to OP)
+  - `true`: all players
+  - `false`: no default; must be granted by a permission plugin
+  - `not-op`: non-OP players
+- `permissions: []` (empty list) means no specific node is required; only `default-level` applies
+- Commands not listed in the file fall back to the built-in defaults (`op`)
+- Permission plugins such as LuckPerms work out of the box: assign the configured nodes to players/groups (e.g. `/lp user <player> permission set mosaicgem.reload true`); Bukkit's standard permission system hands the check to LuckPerms
+
+#### socket-lore: socket info on equipment (shared by all buffTypes)
+
+Updated automatically after punching/socketing/removing:
+
+```yaml
+socket-lore:
+  enabled: true
+  lines:
+    - ''
+    - '&r&f[ &6Socket Info &f]'
+    - '&r&7Sockets: &f{holes}&7/&f{max_holes}'
+  gem-lines:
+    - '&r&7Gem {index}: &f{gem}'
+    - '&r&7  {value_lines}'
+  empty-line: '&r&7No gems'
+```
+
+Placeholders:
+
+| Placeholder | Description |
+| --- | --- |
+| `{holes}` | Number of occupied sockets (gems socketed) |
+| `{max_holes}` | Available sockets on the item (holes punched) |
+| `{gem_count}` | Number of socketed gems |
+| `{index}` | Gem index (starting from 1) |
+| `{gem}` | Gem display name |
+| `{id}` | Gem internal id |
+| `{values}` | Gem value description (single line, e.g. `攻击力：20.00、防御力：20.00`) |
+| `{value_lines}` | Gem value description (one attribute per line) |
+
+#### sx-attribute-lore: SX-Attribute panel merging (only for `buffType: sx_attribute`)
+
+Merges `sx_attribute` gem attributes into the equipment lore; other buffTypes do not use this section.
+
+```yaml
+sx-attribute-lore:
+  enabled: true
+  names: []                          # extra attribute names to recognize (usually empty)
+  new-line: '&r&f{name}：&e{value}'  # template for new lines added for gem-only attributes
+  bonus-format: '&r（+{bonus}）'     # bonus display format
+```
+
+Placeholders: `{name}` attribute name, `{value}` total value, `{bonus}` gem bonus.
+
+> Templates use `&r` (regular text) by default. Colors can use `&`, `§x` hex codes, or `<#RRGGBB>`; `<#RRGGBB>` is parsed into a real color, e.g. `&r<#FFAA00>（<#1EFF5C>+{bonus}<#FFAA00>）`.
+
+### Language message files
+
+Player messages are split per language: `settings.language` in `config.yml` selects the file under `messages/` (e.g. `zh_cn` → `messages/zh_cn.yml`). `{xxx}` are placeholders. Built-in languages:
+
+- `messages/zh_cn.yml`: Simplified Chinese
+- `messages/en_us.yml`: English
+
+Language values are case-insensitive and treat `-` and `_` as equal (e.g. `en-US` and `en_us`). If the selected file is missing, the plugin falls back to Chinese; under Chinese, an old `messages.yml` is still preferred so custom text is preserved.
+
+The language files also contain two name mapping sections:
+
+- `attribute-names`: maps vanilla attribute ids (e.g. `minecraft:attack_damage`) to display names (e.g. `攻击力`) for `vanilla_attribute` gems
+- `enchant-names`: maps enchant ids (e.g. `minecraft:sharpness` → `锋利`, `ce:Wither` → `凋灵`) for `enchant` gems; if missing, vanilla enchants fall back to the raw id and CrazyEnchantments enchants fall back to their CustomName
+
+| Message key | Scenario |
+| --- | --- |
+| `punch-max-global` | Punching: global socket limit reached |
+| `punch-max-source` | Punching: puncher source limit reached |
+| `punch-fail` | Punching: success roll failed (tool consumed) |
+| `socket-no-hole` | Socketing: item has no sockets |
+| `socket-full` | Socketing: sockets are full |
+| `socket-repeat-limit` | Socketing: repeat-socket limit reached for this gem |
+| `socket-bufftype-unsupported` | Socketing: buffType not supported |
+| `remove-empty` | Removal: no socketed gems |
+| `remove-fail` | Removal: success roll failed (tool consumed) |
+| `target-invalid` | Target type/material does not match the tool's limits |
+| `interaction-disabled` | This interaction method is disabled |
+| `tool-config-missing` | Tool is not in the config |
+| `invalid-combination` | Tool+tool or invalid combination |
+| `inventory-full` | Returned gem dropped on the ground because the inventory was full |
+
+There are also success/command/help/debug/selftest messages (`punch-success`, `socket-success`, `remove-success`, `reload-success`, `give-*`, `player-not-found`, `no-permission`, `help-*`, `debug-*`, `selftest-*`, etc.); see the comments inside the files for the full key list.
+
+### items/gems.yml
+
+On first startup, `items/gems.yml` is generated according to the installed soft dependencies, so unused sample gems are not shown:
+
+- Always generated: `原版测试宝石` (`vanilla_attribute`), `附魔测试宝石` (`enchant`)
+- With SX-Attribute installed: `SA测试宝石` (`sx_attribute`) is also generated
+- With MythicMobs installed: `MM技能测试宝石` (`mythicmobs_skill`) is also generated
+
+After installing a new soft dependency, delete `plugins/MosaicGem/items/gems.yml` and run `/mosaicgem reload` to regenerate it (existing files are never overwritten, so custom config is preserved). The full example below shows the file when every soft dependency is installed:
+
+```yaml
+# Internal id (used by the give command)
+SA测试宝石:
+  material: PAPER              # item material
+  isEnchant: true              # enchant glint
+  name: "&cSA测试宝石"          # display name (supports & color codes)
+  lore:                        # item lore
+    - '&a▪ 伤害增加：${random_value}'
+  custom-model-data: 0         # custom model data
+  targetType:                  # allowed equipment types; empty = all
+    - SWORD
+  targetMaterial:              # allowed equipment ids; empty = all (AND with targetType)
+    - IRON_SWORD
+  repetitions: 5               # max times this gem can be socketed; empty = unlimited
+  random:                      # random values rolled at creation; referenced in lore/attribute
+    random_value: '10.00~20.00'
+  buffType: 'sx_attribute'     # SX attribute: written to lore, read by SX-Attribute
+  attribute:                   # sx_attribute only: "属性名：数值"
+    - '攻击力：${random_value}'
+    - '防御力：${random_value}'
+
+原版测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&b原版测试宝石"
+  lore:
+    - '&a▪ 攻击伤害：${random_value}'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  random:
+    random_value: '5.00~10.00'
+  buffType: 'vanilla_attribute'  # vanilla attribute: applied to AttributeModifier, lore untouched
+  attribute:                     # vanilla_attribute only: "vanilla attribute id：数值"
+    - 'minecraft:attack_damage: ${random_value}'
+    - 'minecraft:attack_speed: 2'
+
+附魔测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&d附魔测试宝石"
+  lore:
+    - '&a▪ 锋利等级：${random_value}'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  random:
+    random_value: '1~5'
+  buffType: 'enchant'                # enchant: added/stacked onto the item
+  attribute:                         # enchant only: "enchant id：level"
+    - 'minecraft:sharpness: ${random_value}'
+    - 'minecraft:unbreaking: 1'
+
+MM技能测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&eMM技能测试宝石"
+  lore:
+    - '&a▪ 技能: TestSkill'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  buffType: 'mythicmobs_skill'       # MythicMobs skill: triggered by Crucible item skills
+  attribute:                         # mythicmobs_skill only: one MythicMobs skill per line
+    - 'TestSkill @onSwing'
+```
+
+- `random` supports multiple random numbers in `min~max` format; decimals follow the configured precision and the value is fixed to the gem instance
+- `sx_attribute`: written to the equipment lore and merged by `sx-attribute-lore` (same attributes summed, total + bonus shown)
+- `vanilla_attribute`: applied directly as vanilla attribute modifiers (same attributes merge into one modifier; the item's native same-attribute modifiers are merged into the total); lore is **not** modified
+- `enchant`: adds/stacks enchantments (existing → original level + gem level; missing → created; multiple gems summed; native levels stored and restored on removal)
+- `mythicmobs_skill`: attribute lines are MythicMobs skill names (MythicCrucible format `技能名 @触发器` supported); with MythicCrucible installed the Crucible item-skill system triggers them, otherwise melee-attack fallback is used; socket info shows the skill name
+- Vanilla attribute display names come from `attribute-names`; enchant display names from `enchant-names` (raw id fallback, or CrazyEnchantments CustomName for `ce:` enchants)
+- CrazyEnchantments custom enchants: `ce:附魔名: 等级` (e.g. `ce:Wither: 2`), requires CrazyEnchantments; vanilla enchants: `minecraft:sharpness: 等级`, bare ids (e.g. `sharpness`) get the `minecraft:` prefix automatically
+- `targetMaterial` and `targetType` are ANDed when both are set
+- Supported equipment types: `SWORD`, `SPEAR`, `AXE`, `HELMET`, `CHESTPLATE`, `LEGGINGS`, `BOOTS`, `ELYTRA`
+
+### items/punchers.yml
+
+```yaml
+测试打孔器:
+  material: PAPER
+  isEnchant: true
+  name: "&c测试打孔器"
+  lore:
+    - '我是lore描述'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  rate: 10                     # success rate (0-100, percentage)
+  holesnum: 2                  # max sockets this puncher type can add to one item
+```
+
+### items/removers.yml
+
+```yaml
+测试拆卸器:
+  material: PAPER
+  isEnchant: true
+  name: "&c测试拆卸器"
+  lore:
+    - '我是lore描述'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  rate: 10                     # success rate (0-100, percentage)
+```
+
+## Data Storage & Attribute Calculation
+
+- Tool items (gems/punchers/removers) are identified by type and internal id through PersistentDataContainer
+- Gem instances store their fixed random values in item data
+- Equipment records: total sockets, per-source socket counts, socketed gem list (instance UUID, random values), and original attribute lines before merging
+- Vanilla attributes: native modifiers merged into gem modifiers are stored in the item PDC and restored when gems are removed
+- Enchantments: native enchant levels (vanilla + CrazyEnchantments) are stored in the item PDC and restored on removal
+- Merged attribute lines and socket info use the `§X` marker:
+  - In merged lines, SX-Attribute reads the value before `§X`; the `（+bonus）` after it does not affect calculation
+  - Socket info lines start with `§X` and are ignored by SX-Attribute; they are display-only
+- Existing lore text such as `§r`, `§x` hex colors, italics, and bold is written back literally and never lost
+
+## Building
+
+```powershell
+.\gradlew.bat build
+```
+
+Artifact: `build/libs/MosaicGem-1.0.0-SNAPSHOT.jar`
+
+Development environment: JDK 25, Gradle 9.6.1 (project wrapper included), `dev.folia:folia-api:26.2.build.3-beta`.
+
+## FAQ
+
+**Q: Attributes are not working?**
+
+Make sure `SX-Item` and `SX-Attribute` are installed and enabled, the gem uses `buffType: sx_attribute`, and the merged line exists in the equipment attribute panel; for `vanilla_attribute` gems, check that the corresponding vanilla attribute is present in the item's tooltip.
+
+**Q: `ce:` enchant gems are not working?**
+
+Make sure [CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/) is installed and enabled, and the name after `ce:` matches the enchant name in CrazyEnchantments exactly (e.g. `ce:Wither`). MosaicGem calls its API through a runtime bridge; no extra dependency is needed.
+
+**Q: MythicMobs mobs are not dropping plugin gems?**
+
+Make sure MythicMobs is installed and loads before MosaicGem (declared as a soft dependency); use `mosaicgem:<gem internal id>` as a drop in the mob or drop table, then run `/mm reload` (or restart) so the drops are re-parsed. MosaicGem triggers one drop/mob reload at startup to register its custom drop.
+
+**Q: `mythicmobs_skill` gems are not casting?**
+
+Make sure the gem uses `buffType: mythicmobs_skill`, the skill name in `attribute` matches a skill configured in MythicMobs exactly, and the item is socketed; with MythicCrucible installed, triggers follow the `@<trigger>` field (default `@onSwing`); without it, only melee attacks trigger (`@onSwing` / `@onAttack` / `@onHit`). Cooldowns, conditions, and target selection are handled by MythicMobs.
+
+**Q: How do I debug configuration issues?**
+
+Run `/mosaicgem selftest` for config parsing, item generation, data read/write and attribute merging; run `/mosaicgem debug` to inspect the item data of what you are holding.
+
+## License
+
+This plugin is released under the [GNU LGPL v3](https://www.gnu.org/licenses/lgpl-3.0.html) license (full text in the repository's [LICENSE](LICENSE) file).
+
+Anyone may use, modify, and distribute this plugin under the LGPL-3.0 terms; modified versions distributed externally must keep this license notice and be licensed under the same license.
