@@ -13,7 +13,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 
 public final class MosaicGemPlugin extends JavaPlugin {
@@ -100,9 +106,63 @@ public final class MosaicGemPlugin extends JavaPlugin {
     }
 
     private void saveItemFiles() {
-        saveResourceIfAbsent("items/gems.yml");
+        generateGemsFileIfAbsent();
         saveResourceIfAbsent("items/punchers.yml");
         saveResourceIfAbsent("items/removers.yml");
+    }
+
+    /**
+     * 按已安装的软依赖生成默认宝石配置：
+     * 原版属性 / 附魔示例宝石始终生成；SX-Attribute 宝石需要 SX-Attribute，
+     * MythicMobs 技能宝石需要 MythicMobs。文件已存在时不覆盖。
+     */
+    private void generateGemsFileIfAbsent() {
+        File target = new File(getDataFolder(), "items" + File.separator + "gems.yml");
+        if (target.exists()) {
+            return;
+        }
+        File parent = target.getParentFile();
+        if (parent != null) {
+            parent.mkdirs();
+        }
+
+        StringBuilder content = new StringBuilder();
+        appendResource(content, "items/gem-blocks/header.yml");
+        appendResource(content, "items/gem-blocks/vanilla.yml");
+        appendResource(content, "items/gem-blocks/enchant.yml");
+        if (Bukkit.getPluginManager().getPlugin("SX-Attribute") != null) {
+            appendResource(content, "items/gem-blocks/sx.yml");
+        }
+        if (Bukkit.getPluginManager().getPlugin("MythicMobs") != null) {
+            appendResource(content, "items/gem-blocks/mm.yml");
+        }
+
+        try {
+            Files.write(target.toPath(), content.toString().getBytes(StandardCharsets.UTF_8));
+            getLogger().info("已生成 items/gems.yml（按已安装软依赖筛选示例宝石）");
+        } catch (IOException e) {
+            getLogger().warning("生成 items/gems.yml 失败: " + e.getMessage());
+        }
+    }
+
+    private void appendResource(StringBuilder builder, String name) {
+        try (InputStream in = getResource(name)) {
+            if (in == null) {
+                getLogger().warning("内置资源缺失: " + name);
+                return;
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    builder.append(line).append('\n');
+                }
+            }
+            if (builder.length() > 0 && builder.charAt(builder.length() - 1) != '\n') {
+                builder.append('\n');
+            }
+        } catch (IOException e) {
+            getLogger().warning("读取内置资源失败: " + name + " - " + e.getMessage());
+        }
     }
 
     private void saveResourceIfAbsent(String name) {

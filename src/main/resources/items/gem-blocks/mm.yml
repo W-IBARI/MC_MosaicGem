@@ -1,0 +1,20 @@
+MM技能测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&eMM技能测试宝石"
+  lore:
+    - ''
+    - '&7可镶嵌的装备类型: &f剑'
+    - ''
+    - '&f[ &eMythicMobs 技能 &f]'
+    - '&a▪ 技能: TestSkill'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  buffType: 'mythicmobs_skill'  # MythicMobs 技能：按 MythicCrucible 物品技能规则触发
+  attribute:
+    - 'TestSkill @onSwing'
+

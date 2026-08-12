@@ -266,6 +266,14 @@ sx-attribute-lore:
 
 ### items/gems.yml
 
+首次启动时 `items/gems.yml` 会按已安装的软依赖自动生成，避免展示用不到的示例宝石：
+
+- 始终生成：`原版测试宝石`（`vanilla_attribute`）、`附魔测试宝石`（`enchant`）
+- 已安装 SX-Attribute：额外生成 `SA测试宝石`（`sx_attribute`）
+- 已安装 MythicMobs：额外生成 `MM技能测试宝石`（`mythicmobs_skill`）
+
+之后新安装软依赖时，删除 `plugins/MosaicGem/items/gems.yml` 并执行 `/mosaicgem reload` 即可重新生成（已有文件不会被覆盖，避免丢失自定义配置）。以下是所有软依赖齐全时的完整示例：
+
 ```yaml
 # 内部名（指令发放时使用）
 SA测试宝石:

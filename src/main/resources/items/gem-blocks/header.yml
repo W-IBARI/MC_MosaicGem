@@ -1,0 +1,31 @@
+# 宝石配置
+# 本文件在插件首次启动时按已安装的软依赖自动生成：
+#   - 已安装 SX-Attribute   -> 生成 SA测试宝石（sx_attribute）
+#   - 已安装 MythicMobs     -> 生成 MM技能测试宝石（mythicmobs_skill）
+#   - 原版属性 / 附魔示例宝石始终生成，不依赖任何插件
+# 之后新安装软依赖时，删除本文件并执行 /mosaicgem reload 可重新生成。
+# 内部名:
+#   material: 物品材质
+#   isEnchant: 是否附魔（光效）
+#   name: 物品名称
+#   lore: 物品lore（支持 ${随机数名} 占位符）
+#   custom-model-data: 自定义模型序号
+#   targetType: 可镶嵌的物品类型，不填默认全生效
+#   targetMaterial: 可镶嵌的物品id，不填默认全生效
+#   repetitions: 可重复镶嵌次数，不填默认无上限
+#   random: 创建随机数（生成时随机取值，并应用到其他部分）
+#   buffType: 加成生效方式
+#     sx_attribute：SX 属性，属性行写入装备 lore，由 SX-Attribute 读取
+#     vanilla_attribute：原版属性，直接附加到装备的属性修饰符（AttributeModifier）
+#     enchant：附魔，直接附加/叠加到装备的原版附魔（CrazyEnchantments 附魔用 ce: 前缀）
+#     mythicmobs_skill：MythicMobs 技能，镶嵌后按 MythicMobs 规则发动技能
+#       attribute 格式：'技能名 @触发器'（如 'TestSkill @onSwing'），不写触发器默认 @onSwing；
+#       安装 MythicCrucible 时由其物品技能系统触发（SWING/USE/RIGHTCLICK 等），
+#       未安装时回退到内置的近战攻击触发（仅 onSwing/onAttack 类触发器生效）
+#   attribute: 注入的属性行
+#     sx_attribute 格式：'属性名：数值'（如 '攻击力：${random_value}'）
+#     vanilla_attribute 格式：'原版属性id：数值'（如 'minecraft:attack_damage: ${random_value}'）
+#     原版属性 id 的显示名在 messages/<语言>.yml 的 attribute-names 段中配置
+#     enchant 格式：'附魔id：等级'（如 'minecraft:sharpness: ${random_value}' 或 'ce:Wither: 2'）
+#     附魔 id 的显示名在 messages/<语言>.yml 的 enchant-names 段中配置
+
