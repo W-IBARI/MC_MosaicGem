@@ -366,7 +366,7 @@ MM技能测试宝石:
 - Vanilla attribute display names come from `attribute-names`; enchant display names from `enchant-names` (raw id fallback, or CrazyEnchantments CustomName for `ce:` enchants)
 - CrazyEnchantments custom enchants: `ce:附魔名: 等级` (e.g. `ce:Wither: 2`), requires CrazyEnchantments; vanilla enchants: `minecraft:sharpness: 等级`, bare ids (e.g. `sharpness`) get the `minecraft:` prefix automatically
 - `targetMaterial` and `targetType` are ANDed when both are set
-- Supported equipment types: `SWORD`, `SPEAR`, `AXE`, `HELMET`, `CHESTPLATE`, `LEGGINGS`, `BOOTS`, `ELYTRA`
+- Supported equipment types: `SWORD`, `SPEAR`, `TRIDENT`, `AXE`, `HOE`, `SHOVEL`, `PICKAXE`, `BOW`, `CROSSBOW`, `MACE`, `SHIELD`, `HELMET`, `CHESTPLATE`, `LEGGINGS`, `BOOTS`, `ELYTRA`
 
 ### items/punchers.yml
 

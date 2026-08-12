@@ -364,7 +364,7 @@ MM技能测试宝石:
 - 原版属性 id 的显示名在语言文件 `attribute-names` 段配置；附魔 id 的显示名在 `enchant-names` 段配置，未配置时显示原始 id（CrazyEnchantments 附魔回退显示其 CustomName）
 - CrazyEnchantments 自定义附魔格式：`ce:附魔名: 等级`（如 `ce:Wither: 2`），需要服务器已安装 CrazyEnchantments；原版附魔格式：`minecraft:sharpness: 等级`，裸 id（如 `sharpness`）会自动补 `minecraft:` 前缀
 - `targetMaterial` 与 `targetType` 同时配置时需**同时满足**才可操作
-- 支持的装备类型：`SWORD`、`SPEAR`、`AXE`、`HELMET`、`CHESTPLATE`、`LEGGINGS`、`BOOTS`、`ELYTRA`
+- 支持的装备类型：`SWORD`、`SPEAR`、`TRIDENT`、`AXE`、`HOE`、`SHOVEL`、`PICKAXE`、`BOW`、`CROSSBOW`、`MACE`、`SHIELD`、`HELMET`、`CHESTPLATE`、`LEGGINGS`、`BOOTS`、`ELYTRA`
 
 ### items/punchers.yml
 
