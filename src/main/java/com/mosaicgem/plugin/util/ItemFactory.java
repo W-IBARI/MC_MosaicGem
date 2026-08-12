@@ -14,8 +14,8 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
@@ -37,12 +37,17 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * 物品工厂：生成工具物品、读写物品组件（custom data）中的镶嵌数据。
  */
 public class ItemFactory {
+
+    /** 配置模板中的十六进制颜色标记，如 <#FFAA00>（也兼容 8 位 <#RRGGBBAA>） */
+    private static final Pattern HEX_TAG = Pattern.compile("<#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?>");
 
     /** 宝石加成方式：SX 属性（写入 lore，由 SX-Attribute 读取） */
     public static final String BUFF_TYPE_SX = "sx_attribute";
@@ -123,10 +128,10 @@ public class ItemFactory {
             if (definition.getCustomModelData() != null) {
                 meta.setCustomModelData(definition.getCustomModelData());
             }
-            meta.setDisplayName(colorize(resolve(definition.getName(), values)));
+            meta.displayName(toComponent(resolve(definition.getName(), values)));
             if (!definition.getLore().isEmpty()) {
-                meta.setLore(definition.getLore().stream()
-                        .map(line -> colorize(resolve(line, values)))
+                meta.lore(definition.getLore().stream()
+                        .map(line -> toComponent(resolve(line, values)))
                         .toList());
             }
         });
@@ -325,22 +330,55 @@ public class ItemFactory {
         });
     }
 
-    private static Component toComponent(String line) {
+    public static Component toComponent(String line) {
         String colored = colorize(line);
         int markerIndex = colored.indexOf("\u00A7X");
         if (markerIndex < 0) {
             // 原样保留原始行文本（如行首的 §r、§x 十六进制色），
             // 避免 legacy 解析后行首 §r 被序列化丢弃导致格式回退
-            return Component.text(colored);
+            return parseStyledText(colored);
         }
         // 标记前的原始文本同样原样保留
-        Component prefix = Component.text(colored.substring(0, markerIndex));
-        Component suffix = LegacyComponentSerializer.legacySection().deserialize(colored.substring(markerIndex + 2));
+        Component prefix = parseStyledText(colored.substring(0, markerIndex));
+        Component suffix = parseStyledText(colored.substring(markerIndex + 2));
         // 客户端 lore 默认样式为斜体；模板未显式指定斜体时强制关闭，保证默认正体
         if (suffix.style().decoration(TextDecoration.ITALIC) != TextDecoration.State.TRUE) {
             suffix = suffix.decoration(TextDecoration.ITALIC, false);
         }
         return prefix.append(Component.text(colored.substring(markerIndex, markerIndex + 2))).append(suffix);
+    }
+
+    /**
+     * 解析配置模板中的 <#RRGGBB> 十六进制颜色：
+     * - 普通段落按字面文本保留（§ 代码交给客户端解析）
+     * - 颜色标记后的段落应用真实 TextColor，支持连续多个颜色切换
+     */
+    private static Component parseStyledText(String text) {
+        if (text == null || text.isEmpty() || text.indexOf("<#") < 0) {
+            return Component.text(text == null ? "" : text);
+        }
+        Component root = Component.empty();
+        Matcher matcher = HEX_TAG.matcher(text);
+        int last = 0;
+        TextColor pending = null;
+        while (matcher.find()) {
+            if (matcher.start() > last) {
+                root = root.append(applyColor(Component.text(text.substring(last, matcher.start())), pending));
+            }
+            pending = TextColor.fromHexString("#" + matcher.group(1));
+            last = matcher.end();
+        }
+        if (last < text.length()) {
+            root = root.append(applyColor(Component.text(text.substring(last)), pending));
+        } else if (pending != null) {
+            // 颜色标记位于行尾：补一个空彩色组件，保证颜色状态被记录
+            root = root.append(Component.text("").color(pending));
+        }
+        return root;
+    }
+
+    private static Component applyColor(Component component, TextColor color) {
+        return color == null ? component : component.color(color);
     }
 
     // ------------------------------------------------------------------

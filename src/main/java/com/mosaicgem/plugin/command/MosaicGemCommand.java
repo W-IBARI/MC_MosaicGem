@@ -16,8 +16,10 @@ import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -568,6 +570,23 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             lines.add(configs.message("selftest-punch-lore-fail").replace("{error}", e.getMessage()));
         }
 
+        try {
+            // 配置模板：<#RRGGBB> 十六进制颜色应转为真实颜色，而不是作为字面文本写入
+            Component colored = ItemFactory.toComponent("&r<#FFAA00>（<#1EFF5C>+20<#FFAA00>）");
+            String plain = PlainTextComponentSerializer.plainText().serialize(colored);
+            if (plain.contains("<#") || !plain.contains("（+20）")) {
+                throw new IllegalStateException("十六进制颜色被当成字面文本: " + plain);
+            }
+            if (!hasColor(colored, TextColor.fromHexString("#FFAA00"))
+                    || !hasColor(colored, TextColor.fromHexString("#1EFF5C"))) {
+                throw new IllegalStateException("十六进制颜色未转换为真实颜色");
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "颜色模板: " + e.getMessage()));
+        }
+
         sender.sendMessage(ItemFactory.colorize(configs.message("selftest-title")));
         sender.sendMessage(ItemFactory.colorize(configs.message("selftest-pass-fail")
                 .replace("{ok}", String.valueOf(ok))
@@ -586,6 +605,18 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         }
         for (Component child : component.children()) {
             if (hasItalicFalse(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasColor(Component component, TextColor color) {
+        if (color.equals(component.color())) {
+            return true;
+        }
+        for (Component child : component.children()) {
+            if (hasColor(child, color)) {
                 return true;
             }
         }
