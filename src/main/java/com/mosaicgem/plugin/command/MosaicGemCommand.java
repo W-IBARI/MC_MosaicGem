@@ -12,12 +12,17 @@ import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
 import com.mosaicgem.plugin.service.AttributeLoreService;
 import com.mosaicgem.plugin.util.ItemFactory;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
 import io.papermc.paper.persistence.PersistentDataContainerView;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -356,7 +361,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             )));
             Map<String, String> gemValues = new LinkedHashMap<>();
             gemValues.put("random_value", "20.00");
-            SocketedGem gem = new SocketedGem("测试宝石", "test-uuid-merge", gemValues, List.of());
+            SocketedGem gem = new SocketedGem("SA测试宝石", "test-uuid-merge", gemValues, List.of());
             Map<String, Integer> sources = new LinkedHashMap<>();
             sources.put("测试打孔器", 1);
             factory.writeSocketData(sword, 1, sources, List.of(gem));
@@ -400,7 +405,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             // 第二颗宝石：应更新原属性行而不是新增一行，括号取小数位最多的宝石位数
             Map<String, String> gemValues2 = new LinkedHashMap<>();
             gemValues2.put("random_value", "20.00");
-            SocketedGem gem2 = new SocketedGem("测试宝石", "test-uuid-merge-2", gemValues2, List.of());
+            SocketedGem gem2 = new SocketedGem("SA测试宝石", "test-uuid-merge-2", gemValues2, List.of());
             attributeLoreService.update(sword, List.of(gem, gem2));
             factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem, gem2)), configs.socketLore());
             List<String> loreAfterSecond = sword.getItemMeta().getLore();
@@ -436,6 +441,58 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         } catch (Exception e) {
             fail++;
             lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", e.getMessage()));
+        }
+
+        try {
+            // 原版属性：同属性宝石应合并为一个修饰符，并与物品原生修饰符合并；取下后还原
+            GemDefinition vanillaDefinition = configs.getGem("原版测试宝石");
+            if (vanillaDefinition == null) {
+                throw new IllegalStateException("缺少原版测试宝石配置");
+            }
+            ItemStack vanillaSword = new ItemStack(Material.IRON_SWORD);
+            vanillaSword.setData(DataComponentTypes.ATTRIBUTE_MODIFIERS,
+                    ItemAttributeModifiers.itemAttributes()
+                            .addModifier(Attribute.ATTACK_DAMAGE,
+                                    new AttributeModifier(new NamespacedKey("mosaicgemtest", "native_damage"),
+                                            7.0, AttributeModifier.Operation.ADD_NUMBER))
+                            .build());
+            Map<String, String> vanillaValues1 = new LinkedHashMap<>();
+            vanillaValues1.put("random_value", "5.00");
+            Map<String, String> vanillaValues2 = new LinkedHashMap<>();
+            vanillaValues2.put("random_value", "6.00");
+            SocketedGem vanillaGem1 = new SocketedGem(vanillaDefinition.getId(), "v-uuid-1", vanillaValues1, List.of());
+            SocketedGem vanillaGem2 = new SocketedGem(vanillaDefinition.getId(), "v-uuid-2", vanillaValues2, List.of());
+
+            factory.rebuildVanillaAttributes(vanillaSword, List.of(vanillaGem1, vanillaGem2));
+            ItemAttributeModifiers mods = vanillaSword.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+            long attackCount = mods.modifiers().stream()
+                    .filter(entry -> entry.attribute() == Attribute.ATTACK_DAMAGE)
+                    .count();
+            double attackTotal = mods.modifiers().stream()
+                    .filter(entry -> entry.attribute() == Attribute.ATTACK_DAMAGE)
+                    .mapToDouble(entry -> entry.modifier().getAmount())
+                    .sum();
+            if (attackCount != 1 || Math.abs(attackTotal - 18.0) > 0.001) {
+                throw new IllegalStateException("原版宝石未合并: count=" + attackCount + " total=" + attackTotal);
+            }
+
+            // 全部取下：应还原原生修饰符（+7），且不残留插件修饰符
+            factory.rebuildVanillaAttributes(vanillaSword, List.of());
+            mods = vanillaSword.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+            attackCount = mods.modifiers().stream()
+                    .filter(entry -> entry.attribute() == Attribute.ATTACK_DAMAGE)
+                    .count();
+            attackTotal = mods.modifiers().stream()
+                    .filter(entry -> entry.attribute() == Attribute.ATTACK_DAMAGE)
+                    .mapToDouble(entry -> entry.modifier().getAmount())
+                    .sum();
+            if (attackCount != 1 || Math.abs(attackTotal - 7.0) > 0.001) {
+                throw new IllegalStateException("原版宝石取下后未还原: count=" + attackCount + " total=" + attackTotal);
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "原版: " + e.getMessage()));
         }
 
         try {

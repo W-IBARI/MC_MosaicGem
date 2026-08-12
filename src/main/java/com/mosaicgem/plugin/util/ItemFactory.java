@@ -63,6 +63,7 @@ public class ItemFactory {
     private final NamespacedKey keyGems;
     private final NamespacedKey keySocketLines;
     private final NamespacedKey keyBaseLines;
+    private final NamespacedKey keyVanillaNatives;
     private final NamespacedKey keyUuid;
     private final NamespacedKey keyCount;
     private final NamespacedKey keySources;
@@ -77,6 +78,7 @@ public class ItemFactory {
         this.keyGems = key("gems");
         this.keySocketLines = key("socketLines");
         this.keyBaseLines = key("baseLines");
+        this.keyVanillaNatives = key("vanillaNatives");
         this.keyUuid = key("uuid");
         this.keyCount = key("count");
         this.keySources = key("sources");
@@ -506,84 +508,232 @@ public class ItemFactory {
     // ------------------------------------------------------------------
 
     /**
-     * 将原版属性附加到物品上（写入 AttributeModifier，不修改 lore）。
-     * 注意：该服务端的 addAttributeModifier 会整体替换属性修饰符组件，
-     * 因此这里先保留物品现有的全部修饰符（含默认值），再追加宝石修饰符。
+     * 重建物品的原版属性修饰符：
+     * - 移除本插件此前添加的全部修饰符
+     * - 汇总所有已镶嵌原版宝石的属性值（同属性求和）
+     * - 把物品原有的同属性 ADD_NUMBER 修饰符合并进去（原样存入 PDC，宝石取下后可还原），
+     *   保证 tooltip 只显示一行总值
      */
-    public void applyVanillaAttributes(ItemStack item, GemDefinition definition, Map<String, String> values, String instanceId) {
-        if (item == null || definition == null) {
+    public void rebuildVanillaAttributes(ItemStack item, List<SocketedGem> gems) {
+        if (item == null || item.getType().isAir()) {
             return;
         }
-        List<Map.Entry<Attribute, AttributeModifier>> additions = new ArrayList<>();
-        int index = 0;
-        for (String line : definition.getAttribute()) {
-            VanillaAttribute parsed = parseVanillaAttribute(line);
-            if (parsed == null) {
+
+        // 1. 汇总所有原版宝石按属性 id 的总加成
+        Map<String, Double> totals = new LinkedHashMap<>();
+        for (SocketedGem gem : gems) {
+            GemDefinition definition = configs.getGem(gem.id());
+            if (definition == null || !BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())) {
                 continue;
             }
-            String resolved = resolve(parsed.value(), values);
-            double amount;
-            try {
-                amount = Double.parseDouble(resolved.trim());
-            } catch (NumberFormatException e) {
-                continue;
+            for (String line : definition.getAttribute()) {
+                VanillaAttribute parsed = parseVanillaAttribute(line);
+                if (parsed == null) {
+                    continue;
+                }
+                String resolved = resolve(parsed.value(), gem.values());
+                double amount;
+                try {
+                    amount = Double.parseDouble(resolved.trim());
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+                totals.merge(parsed.id(), amount, Double::sum);
             }
-            NamespacedKey attributeKey;
+        }
+
+        // 2. 读取当前修饰符：本插件的全部移除；同属性 ADD_NUMBER 原生修饰符进入“可合并池”
+        ItemAttributeModifiers current = item.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
+        List<ItemAttributeModifiers.Entry> keep = new ArrayList<>();
+        List<NativeEntry> availableNatives = new ArrayList<>(readVanillaNatives(item));
+        if (current != null) {
+            for (ItemAttributeModifiers.Entry entry : current.modifiers()) {
+                NamespacedKey key = entry.modifier().getKey();
+                if (key != null && "mosaicgem".equals(key.getNamespace())) {
+                    continue;
+                }
+                String attributeId = entry.attribute().getKey().toString();
+                if (entry.modifier().getOperation() == AttributeModifier.Operation.ADD_NUMBER
+                        && totals.containsKey(attributeId)) {
+                    availableNatives.add(toNativeEntry(entry));
+                    continue;
+                }
+                keep.add(entry);
+            }
+        }
+
+        // 3. 按属性消费可合并的原生修饰符，生成合并后的单个修饰符
+        Map<String, List<NativeEntry>> nativesByAttribute = new LinkedHashMap<>();
+        for (NativeEntry nativeEntry : availableNatives) {
+            nativesByAttribute.computeIfAbsent(nativeEntry.attributeId(), k -> new ArrayList<>()).add(nativeEntry);
+        }
+        List<NativeEntry> storedNatives = new ArrayList<>();
+        List<NativeEntry> restoreNatives = new ArrayList<>();
+        Map<String, CombinedEntry> combined = new LinkedHashMap<>();
+        for (String attributeId : totals.keySet()) {
+            List<NativeEntry> natives = nativesByAttribute.remove(attributeId);
+            double nativeSum = 0;
+            org.bukkit.inventory.EquipmentSlotGroup group = null;
+            io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay display = null;
+            if (natives != null) {
+                for (NativeEntry nativeEntry : natives) {
+                    nativeSum += nativeEntry.amount();
+                    if (group == null) {
+                        group = org.bukkit.inventory.EquipmentSlotGroup.getByName(nativeEntry.group());
+                    }
+                    if (display == null) {
+                        display = "hidden".equals(nativeEntry.display())
+                                ? io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay.hidden()
+                                : io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay.reset();
+                    }
+                }
+                storedNatives.addAll(natives);
+            }
+            double amount = totals.get(attributeId) + nativeSum;
+            if (amount != 0) {
+                combined.put(attributeId, new CombinedEntry(attributeId, amount, group, display));
+            }
+        }
+        for (List<NativeEntry> natives : nativesByAttribute.values()) {
+            restoreNatives.addAll(natives);
+        }
+
+        // 4. 重建组件：保留项 + 还原的原生修饰符 + 每属性一个合并修饰符
+        ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.itemAttributes();
+        for (ItemAttributeModifiers.Entry entry : keep) {
+            builder.addModifier(entry.attribute(), entry.modifier(), entry.getGroup(), entry.display());
+        }
+        for (NativeEntry nativeEntry : restoreNatives) {
+            addNativeEntry(builder, nativeEntry);
+        }
+        for (CombinedEntry entry : combined.values()) {
+            Attribute attribute;
             try {
-                attributeKey = NamespacedKey.fromString(parsed.id());
+                attribute = Registry.ATTRIBUTE.get(NamespacedKey.fromString(entry.attributeId()));
             } catch (IllegalArgumentException e) {
                 continue;
             }
-            Attribute attribute = Registry.ATTRIBUTE.get(attributeKey);
             if (attribute == null) {
                 continue;
             }
-            NamespacedKey modifierKey = new NamespacedKey(plugin, "gem_" + instanceId.replace("-", "") + "_" + index);
-            additions.add(Map.entry(attribute, new AttributeModifier(modifierKey, amount, AttributeModifier.Operation.ADD_NUMBER)));
-            index++;
-        }
-        if (additions.isEmpty()) {
-            return;
-        }
-
-        ItemAttributeModifiers current = item.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
-        ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.itemAttributes();
-        if (current != null) {
-            for (ItemAttributeModifiers.Entry entry : current.modifiers()) {
-                builder.addModifier(entry.attribute(), entry.modifier(), entry.getGroup(), entry.display());
+            NamespacedKey modifierKey = new NamespacedKey(plugin, "attr_" + sanitizeKey(entry.attributeId()));
+            AttributeModifier modifier = new AttributeModifier(modifierKey, entry.amount(), AttributeModifier.Operation.ADD_NUMBER);
+            org.bukkit.inventory.EquipmentSlotGroup group = entry.group();
+            io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay display = entry.display();
+            if (group != null && display != null) {
+                builder.addModifier(attribute, modifier, group, display);
+            } else {
+                builder.addModifier(attribute, modifier);
             }
-        }
-        for (Map.Entry<Attribute, AttributeModifier> addition : additions) {
-            builder.addModifier(addition.getKey(), addition.getValue());
         }
         item.setData(DataComponentTypes.ATTRIBUTE_MODIFIERS, builder.build());
+        writeVanillaNatives(item, storedNatives);
     }
 
-    /**
-     * 移除某颗原版属性宝石附加到物品上的 AttributeModifier。
-     */
-    public void removeVanillaAttributes(ItemStack item, SocketedGem gem) {
-        if (item == null || gem == null) {
+    private static String sanitizeKey(String attributeId) {
+        int index = attributeId.indexOf(':');
+        String key = index >= 0 ? attributeId.substring(index + 1) : attributeId;
+        return key.replaceAll("[^a-z0-9/._-]", "_");
+    }
+
+    private static NativeEntry toNativeEntry(ItemAttributeModifiers.Entry entry) {
+        NamespacedKey key = entry.modifier().getKey();
+        String keyString = key == null ? "minecraft:unknown" : key.getNamespace() + ":" + key.getKey();
+        String group = entry.getGroup() == null ? "ANY" : entry.getGroup().toString();
+        return new NativeEntry(
+                entry.attribute().getKey().toString(),
+                keyString,
+                entry.modifier().getAmount(),
+                group,
+                displayCode(entry.display())
+        );
+    }
+
+    private static String displayCode(io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay display) {
+        if (display != null && display.equals(io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay.hidden())) {
+            return "hidden";
+        }
+        return "reset";
+    }
+
+    private static void addNativeEntry(ItemAttributeModifiers.Builder builder, NativeEntry nativeEntry) {
+        Attribute attribute;
+        try {
+            attribute = Registry.ATTRIBUTE.get(NamespacedKey.fromString(nativeEntry.attributeId()));
+        } catch (IllegalArgumentException e) {
             return;
         }
-        ItemAttributeModifiers current = item.getData(DataComponentTypes.ATTRIBUTE_MODIFIERS);
-        if (current == null) {
+        if (attribute == null) {
             return;
         }
-        String instancePrefix = "gem_" + gem.instanceId().replace("-", "");
-        ItemAttributeModifiers.Builder builder = ItemAttributeModifiers.itemAttributes();
-        boolean removed = false;
-        for (ItemAttributeModifiers.Entry entry : current.modifiers()) {
-            NamespacedKey key = entry.modifier().getKey();
-            if (key != null && key.getKey().startsWith(instancePrefix)) {
-                removed = true;
-                continue;
+        NamespacedKey key;
+        try {
+            key = NamespacedKey.fromString(nativeEntry.key());
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        AttributeModifier modifier = new AttributeModifier(key, nativeEntry.amount(), AttributeModifier.Operation.ADD_NUMBER);
+        org.bukkit.inventory.EquipmentSlotGroup group = org.bukkit.inventory.EquipmentSlotGroup.getByName(nativeEntry.group());
+        io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay display = "hidden".equals(nativeEntry.display())
+                ? io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay.hidden()
+                : io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay.reset();
+        if (group != null) {
+            builder.addModifier(attribute, modifier, group, display);
+        } else {
+            builder.addModifier(attribute, modifier);
+        }
+    }
+
+    private List<NativeEntry> readVanillaNatives(ItemStack item) {
+        PersistentDataContainer container = item.getPersistentDataContainer().get(keyVanillaNatives, PersistentDataType.TAG_CONTAINER);
+        List<NativeEntry> result = new ArrayList<>();
+        if (container == null) {
+            return result;
+        }
+        int count = container.getOrDefault(keyCount, PersistentDataType.INTEGER, 0);
+        for (int i = 0; i < count; i++) {
+            String attributeId = container.get(key("a" + i), PersistentDataType.STRING);
+            String key = container.get(key("k" + i), PersistentDataType.STRING);
+            Double amount = container.get(key("v" + i), PersistentDataType.DOUBLE);
+            String group = container.get(key("g" + i), PersistentDataType.STRING);
+            String display = container.get(key("d" + i), PersistentDataType.STRING);
+            if (attributeId != null && key != null && amount != null && group != null && display != null) {
+                result.add(new NativeEntry(attributeId, key, amount, group, display));
             }
-            builder.addModifier(entry.attribute(), entry.modifier(), entry.getGroup(), entry.display());
         }
-        if (removed) {
-            item.setData(DataComponentTypes.ATTRIBUTE_MODIFIERS, builder.build());
-        }
+        return result;
+    }
+
+    private void writeVanillaNatives(ItemStack item, List<NativeEntry> entries) {
+        item.editPersistentDataContainer(pdc -> {
+            if (entries == null || entries.isEmpty()) {
+                pdc.remove(keyVanillaNatives);
+                return;
+            }
+            PersistentDataContainer container = pdc.getAdapterContext().newPersistentDataContainer();
+            int index = 0;
+            for (NativeEntry entry : entries) {
+                container.set(key("a" + index), PersistentDataType.STRING, entry.attributeId());
+                container.set(key("k" + index), PersistentDataType.STRING, entry.key());
+                container.set(key("v" + index), PersistentDataType.DOUBLE, entry.amount());
+                container.set(key("g" + index), PersistentDataType.STRING, entry.group());
+                container.set(key("d" + index), PersistentDataType.STRING, entry.display());
+                index++;
+            }
+            container.set(keyCount, PersistentDataType.INTEGER, index);
+            pdc.set(keyVanillaNatives, PersistentDataType.TAG_CONTAINER, container);
+        });
+    }
+
+    private record NativeEntry(String attributeId, String key, double amount, String group, String display) {
+    }
+
+    private record CombinedEntry(
+            String attributeId,
+            double amount,
+            org.bukkit.inventory.EquipmentSlotGroup group,
+            io.papermc.paper.datacomponent.item.attribute.AttributeModifierDisplay display
+    ) {
     }
 
     private static VanillaAttribute parseVanillaAttribute(String line) {

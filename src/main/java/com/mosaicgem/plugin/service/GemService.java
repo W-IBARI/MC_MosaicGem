@@ -92,11 +92,8 @@ public class GemService {
                 gems.add(socketedGem);
                 ItemStack preview = combo.target().clone();
                 factory.writeSocketData(preview, data.holes(), data.holeSources(), gems);
-                if (isVanillaAttribute(definition)) {
-                    factory.applyVanillaAttributes(preview, definition, values, socketedGem.instanceId());
-                } else {
-                    attributeLoreService.update(preview, gems);
-                }
+                factory.rebuildVanillaAttributes(preview, gems);
+                attributeLoreService.update(preview, gems);
                 factory.applySocketLore(preview, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
                 yield preview;
             }
@@ -189,11 +186,8 @@ public class GemService {
 
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
-        if (isVanillaAttribute(definition)) {
-            factory.applyVanillaAttributes(result, definition, values, socketedGem.instanceId());
-        } else {
-            attributeLoreService.update(result, gems);
-        }
+        factory.rebuildVanillaAttributes(result, gems);
+        attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
         return new OperationResult(result, null, true, configs.message("socket-success"));
     }
@@ -222,12 +216,8 @@ public class GemService {
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.removeLoreLines(result, removed.lines());
-        GemDefinition removedDefinition = configs.getGem(removed.id());
-        if (removedDefinition != null && isVanillaAttribute(removedDefinition)) {
-            factory.removeVanillaAttributes(result, removed);
-        } else {
-            attributeLoreService.update(result, gems);
-        }
+        factory.rebuildVanillaAttributes(result, gems);
+        attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
 
         ItemStack returnedGem = buildReturnedGem(removed);
