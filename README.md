@@ -17,7 +17,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 - 服务端：Folia 26.2（Java Edition 26.2）
 - Java：JDK 25+
-- 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）；[MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs)（`mythicmobs_skill` 宝石与怪物掉落宝石需要）
+- 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）；[MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs)（`mythicmobs_skill` 宝石与怪物掉落宝石需要）；[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible)（`mythicmobs_skill` 宝石的多触发器支持需要，可选）
 
 > 说明：原版 SX-Attribute 仓库尚未适配 26.2，因此 MosaicGem 推荐使用 [W-IBARI/SX-Attribute-Folia-fixed](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) 提供的 26.2 优化构建版。
 >
@@ -64,9 +64,25 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
   - 原生附魔等级会存入物品数据，宝石全部取下后自动还原为原始等级
   - 原版附魔 id 使用 `minecraft:` 前缀（如 `minecraft:sharpness`）；已安装 CrazyEnchantments 时还可使用 `ce:` 前缀（如 `ce:Wither`）镶嵌其自定义附魔
 - `mythicmobs_skill` 技能宝石规则：
-  - 配置条中的每一行声明一个 MythicMobs 技能名（用户在 MythicMobs 中自行配置的技能）
-  - 镶嵌后，玩家使用该装备以近战攻击命中目标时，自动按 MythicMobs 规则施放技能（冷却、条件、目标选择等由 MythicMobs 处理）
-  - 镶嵌信息中宝石的属性行直接显示技能名（如 `TestSkill`）
+  - 配置条中的每一行声明一个 MythicMobs 技能名，格式参考 MythicCrucible 物品技能：`技能名 @触发器`（如 `TestSkill @onSwing`），不写触发器默认 `@onSwing`
+  - 安装 [MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) 时，触发完全交给 Crucible 的物品技能系统（`SWING` / `USE` / `RIGHTCLICK` 等触发器），插件只负责按宝石配置施放技能；冷却、条件、目标选择等由 MythicMobs 处理
+  - 未安装 MythicCrucible 时回退到内置的近战攻击触发（仅 `@onSwing` / `@onAttack` / `@onHit` 类触发器生效）
+  - 镶嵌信息中宝石的属性行直接显示技能名（如 `TestSkill`），不显示触发器后缀
+
+### MythicCrucible 物品技能（mythicmobs_skill）
+
+[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) 是 MythicMobs 的物品扩展，其物品技能格式为 `- skill:技能名 @触发器`。MosaicGem 的 `mythicmobs_skill` 宝石沿用同一格式：
+
+```yaml
+MM技能测试宝石:
+  buffType: 'mythicmobs_skill'
+  attribute:
+    - 'TestSkill @onSwing'   # 挥动时施放 TestSkill
+    - 'Heal @onUse'          # 右键使用时施放 Heal（需要 MythicCrucible）
+```
+
+- 常见触发器名（大小写不敏感，`on` 前缀可省略）：`onSwing` / `SWING`、`onUse` / `USE`、`onRightClick` / `RIGHTCLICK`、`onShoot` / `SHOOT`、`onJump` / `JUMP` 等
+- 未安装 MythicCrucible 时仅 `onSwing`（及 `onAttack` / `onHit`）生效，其余触发器会被忽略
 
 ### MythicMobs 怪物掉落宝石
 
@@ -321,16 +337,16 @@ MM技能测试宝石:
   targetMaterial:
     - IRON_SWORD
   repetitions: 5
-  buffType: 'mythicmobs_skill'       # MythicMobs 技能：攻击时按 MM 规则发动技能
+  buffType: 'mythicmobs_skill'       # MythicMobs 技能：按 MythicCrucible 物品技能规则触发
   attribute:                         # 仅 mythicmobs_skill：每一行是一个 MM 技能名
-    - 'TestSkill'
+    - 'TestSkill @onSwing'
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
 - `sx_attribute`：属性行写进装备 lore，参与 `sx-attribute-lore` 面板合并（同属性求和、显示总值与加成）
 - `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore
 - `enchant`：属性行直接附加/叠加到装备附魔（已存在则原等级 + 宝石等级，不存在则新建；多宝石同类附魔求和；原生附魔等级存物品数据，取下自动还原）
-- `mythicmobs_skill`：属性行是 MythicMobs 技能名，镶嵌后玩家用该装备近战攻击时自动施放（冷却/条件/目标由 MythicMobs 处理）；镶嵌信息直接显示技能名
+- `mythicmobs_skill`：属性行是 MythicMobs 技能名（支持 `技能名 @触发器` 的 MythicCrucible 格式）；安装 MythicCrucible 时由其物品技能系统触发，否则回退到近战攻击触发；镶嵌信息直接显示技能名
 - 原版属性 id 的显示名在语言文件 `attribute-names` 段配置；附魔 id 的显示名在 `enchant-names` 段配置，未配置时显示原始 id（CrazyEnchantments 附魔回退显示其 CustomName）
 - CrazyEnchantments 自定义附魔格式：`ce:附魔名: 等级`（如 `ce:Wither: 2`），需要服务器已安装 CrazyEnchantments；原版附魔格式：`minecraft:sharpness: 等级`，裸 id（如 `sharpness`）会自动补 `minecraft:` 前缀
 - `targetMaterial` 与 `targetType` 同时配置时需**同时满足**才可操作
@@ -409,7 +425,7 @@ MM技能测试宝石:
 
 **Q：`mythicmobs_skill` 宝石技能不触发？**
 
-确认宝石的 `buffType` 为 `mythicmobs_skill`、`attribute` 中的技能名与 MythicMobs 中配置的技能完全一致，且该装备已镶嵌；目前触发时机为玩家用该装备近战攻击命中目标（`ENTITY_ATTACK`），技能冷却、条件、目标选择等由 MythicMobs 自行处理。
+确认宝石的 `buffType` 为 `mythicmobs_skill`、`attribute` 中的技能名与 MythicMobs 中配置的技能完全一致，且该装备已镶嵌；安装 MythicCrucible 时由它的物品技能系统按 `@触发器` 触发（默认 `@onSwing`），未安装时仅近战攻击触发（`@onSwing` / `@onAttack` / `@onHit`）；技能冷却、条件、目标选择等由 MythicMobs 自行处理。
 
 **Q：如何排查配置问题？**
 

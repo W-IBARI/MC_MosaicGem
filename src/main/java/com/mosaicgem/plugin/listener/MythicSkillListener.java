@@ -14,6 +14,8 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Locale;
+
 /**
  * mm 技能宝石：玩家使用镶嵌了 MythicMobs 技能宝石的装备攻击时，
  * 按 MythicMobs 规则施放宝石配置的技能。
@@ -52,12 +54,56 @@ public final class MythicSkillListener implements Listener {
                 continue;
             }
             for (String skillLine : definition.getAttribute()) {
-                String skill = factory.resolve(skillLine, gem.values());
-                if (skill == null || skill.isBlank()) {
+                SkillLine skill = parseSkillLine(skillLine, gem);
+                if (skill == null || !isAttackTrigger(skill.trigger())) {
                     continue;
                 }
-                bridge.castSkill(player, skill.trim(), event.getEntity());
+                bridge.castSkill(player, skill.name(), event.getEntity());
             }
         }
+    }
+
+    /**
+     * 解析技能行：支持 {@code 技能名 @触发器} / {@code skill:技能名 @触发器} / 纯技能名（默认 onSwing）。
+     */
+    private SkillLine parseSkillLine(String line, SocketedGem gem) {
+        String resolved = factory.resolve(line, gem.values());
+        if (resolved == null || resolved.isBlank()) {
+            return null;
+        }
+        String text = ItemFactory.stripLoreText(resolved);
+        String trigger = "SWING";
+        int at = text.lastIndexOf('@');
+        if (at >= 0 && at + 1 < text.length()) {
+            trigger = normalizeTrigger(text.substring(at + 1).trim());
+            text = text.substring(0, at).trim();
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("skill:")) {
+            text = text.substring("skill:".length()).trim();
+        }
+        return text.isEmpty() ? null : new SkillLine(text, trigger);
+    }
+
+    private static String normalizeTrigger(String raw) {
+        if (raw == null) {
+            return "SWING";
+        }
+        String value = raw.trim();
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("on")) {
+            value = value.substring(2);
+        }
+        return value.toUpperCase(Locale.ROOT);
+    }
+
+    private static boolean isAttackTrigger(String trigger) {
+        return switch (trigger) {
+            case "SWING", "ATTACK", "HIT", "LEFTCLICK" -> true;
+            default -> false;
+        };
+    }
+
+    private record SkillLine(String name, String trigger) {
     }
 }

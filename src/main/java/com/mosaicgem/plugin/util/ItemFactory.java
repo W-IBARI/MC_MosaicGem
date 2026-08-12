@@ -533,7 +533,7 @@ public class ItemFactory {
         }
         if (BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
             return definition.getAttribute().stream()
-                    .map(line -> stripLoreText(resolve(line, gem.values())))
+                    .map(line -> mmSkillDisplay(line, gem.values()))
                     .filter(line -> !line.isEmpty())
                     .collect(Collectors.joining("、"));
         }
@@ -573,7 +573,7 @@ public class ItemFactory {
         }
         if (BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
             for (String line : definition.getAttribute()) {
-                String skill = stripLoreText(resolve(line, gem.values()));
+                String skill = mmSkillDisplay(line, gem.values());
                 if (!skill.isEmpty()) {
                     result.add(skill);
                 }
@@ -587,6 +587,26 @@ public class ItemFactory {
             }
         }
         return result;
+    }
+
+    /**
+     * 生成 MM 技能宝石的显示名：去掉 MythicCrucible 风格的 @触发器 与 skill: 前缀。
+     */
+    private String mmSkillDisplay(String line, Map<String, String> values) {
+        String resolved = resolve(line, values);
+        if (resolved == null) {
+            return "";
+        }
+        String text = stripLoreText(resolved);
+        int at = text.lastIndexOf('@');
+        if (at >= 0) {
+            text = text.substring(0, at).trim();
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("skill:")) {
+            text = text.substring("skill:".length()).trim();
+        }
+        return text;
     }
 
     // ------------------------------------------------------------------

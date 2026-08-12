@@ -3,9 +3,11 @@ package com.mosaicgem.plugin;
 import com.mosaicgem.plugin.command.MosaicGemCommand;
 import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.listener.InteractionListener;
+import com.mosaicgem.plugin.listener.MythicCrucibleListener;
 import com.mosaicgem.plugin.listener.MythicSkillListener;
 import com.mosaicgem.plugin.service.GemService;
 import com.mosaicgem.plugin.util.ItemFactory;
+import com.mosaicgem.plugin.util.MythicCrucibleBridge;
 import com.mosaicgem.plugin.util.MythicMobsBridge;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
@@ -28,6 +30,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
     private GemService gemService;
     private InteractionListener interactionListener;
     private MythicMobsBridge mythicMobsBridge;
+    private MythicCrucibleBridge mythicCrucibleBridge;
     private MosaicGemCommand command;
 
     public static MosaicGemPlugin instance() {
@@ -52,7 +55,15 @@ public final class MosaicGemPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(interactionListener, this);
 
         mythicMobsBridge = new MythicMobsBridge(this, configManager, itemFactory);
-        if (mythicMobsBridge.isAvailable()) {
+        mythicCrucibleBridge = new MythicCrucibleBridge(this, configManager, itemFactory, mythicMobsBridge);
+        if (mythicCrucibleBridge.isAvailable()) {
+            // 使用 MythicCrucible 的物品技能触发管线（SWING/USE/RIGHTCLICK 等），不再自建触发监听
+            Bukkit.getPluginManager().registerEvents(new MythicCrucibleListener(mythicCrucibleBridge), this);
+            for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                mythicCrucibleBridge.registerPlayer(player);
+            }
+        } else if (mythicMobsBridge.isAvailable()) {
+            // 未安装 MythicCrucible 时回退到内置攻击触发
             Bukkit.getPluginManager().registerEvents(new MythicSkillListener(configManager, itemFactory, mythicMobsBridge), this);
         }
 

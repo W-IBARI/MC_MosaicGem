@@ -561,6 +561,9 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             if (!skillLines.contains("TestSkill")) {
                 throw new IllegalStateException("MM 技能宝石信息未显示技能名: " + skillLines);
             }
+            if (skillLines.stream().anyMatch(line -> line.contains("@"))) {
+                throw new IllegalStateException("MM 技能宝石信息未去掉触发器后缀: " + skillLines);
+            }
             ok++;
         } catch (Exception e) {
             fail++;
