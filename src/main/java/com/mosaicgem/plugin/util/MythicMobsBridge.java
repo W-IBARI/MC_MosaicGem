@@ -46,13 +46,13 @@ public final class MythicMobsBridge extends SoftDependencyBridge {
 
     private Class<?> eventClass;
     private Class<?> iDropClass;
-    private Class<?> iItemDropClass;
+    private Class<?> iLocationDropClass;
     private Method getDropName;
     private Method getArgument;
     private Method getConfig;
     private Method registerDrop;
     private Method getConfigString;
-    private Method adaptItem;
+    private Method adaptLocation;
 
     public MythicMobsBridge(MosaicGemPlugin plugin, ConfigManager configs, ItemFactory factory) {
         super(plugin);
@@ -93,7 +93,7 @@ public final class MythicMobsBridge extends SoftDependencyBridge {
 
         eventClass = Class.forName(EVENT_CLASS);
         iDropClass = Class.forName("io.lumine.mythic.api.drops.IDrop");
-        iItemDropClass = Class.forName("io.lumine.mythic.api.drops.IItemDrop");
+        iLocationDropClass = Class.forName("io.lumine.mythic.api.drops.ILocationDrop");
         getDropName = eventClass.getMethod("getDropName");
         getArgument = eventClass.getMethod("getArgument");
         getConfig = eventClass.getMethod("getConfig");
@@ -103,7 +103,7 @@ public final class MythicMobsBridge extends SoftDependencyBridge {
         getConfigString = lineConfigClass.getMethod("getString", String[].class, String.class, String[].class);
 
         Class<?> adapterClass = Class.forName("io.lumine.mythic.bukkit.BukkitAdapter");
-        adaptItem = adapterClass.getMethod("adapt", ItemStack.class);
+        adaptLocation = adapterClass.getMethod("adapt", Class.forName("io.lumine.mythic.api.adapters.AbstractLocation"));
 
         // 动态注册掉落加载事件：Bukkit 要求监听器参数必须是带 getHandlerList 的具体事件类，
         // 这里通过反射拿到事件类后直接注册 EventExecutor，避免编译期依赖 MythicMobs
@@ -153,7 +153,7 @@ public final class MythicMobsBridge extends SoftDependencyBridge {
             String argument = String.valueOf(getArgument.invoke(event));
             Object config = getConfig.invoke(event);
             String gemId = resolveGemId(config, argument);
-            Object drop = createDropProxy(gemId);
+            Object drop = createLocationDropProxy(gemId);
             registerDrop.invoke(event, drop);
             plugin().getLogger().info("已注册 MythicMobs 自定义掉落: " + dropName + " -> 宝石 " + gemId);
         } catch (ReflectiveOperationException e) {
@@ -211,18 +211,19 @@ public final class MythicMobsBridge extends SoftDependencyBridge {
     }
 
     /**
-     * 用动态代理实现 MythicMobs 的 IItemDrop 接口，避免编译期依赖。
+     * 用动态代理实现 MythicMobs 的 ILocationDrop 接口，避免编译期依赖。
+     * 在掉落坐标处逐颗生成宝石：每颗都独立 roll 随机值，复数掉落不再共用同一组数值。
      */
-    private Object createDropProxy(String gemId) {
+    private Object createLocationDropProxy(String gemId) {
         InvocationHandler handler = (proxy, method, args) -> {
             String name = method.getName();
-            if ("getDrop".equals(name) && args != null && args.length >= 2) {
-                double amount = args[1] instanceof Number number ? number.doubleValue() : 1.0;
-                ItemStack item = buildGem(gemId, amount);
-                return adaptItem.invoke(null, item);
+            if ("drop".equals(name) && args != null && args.length >= 3) {
+                double amount = args[2] instanceof Number number ? number.doubleValue() : 1.0;
+                dropGems(gemId, args[0], amount);
+                return null;
             }
             if ("toString".equals(name)) {
-                return "MosaicGemDrop(" + gemId + ")";
+                return "MosaicGemLocationDrop(" + gemId + ")";
             }
             if ("hashCode".equals(name)) {
                 return System.identityHashCode(proxy);
@@ -232,7 +233,24 @@ public final class MythicMobsBridge extends SoftDependencyBridge {
             }
             return null;
         };
-        return Proxy.newProxyInstance(iItemDropClass.getClassLoader(), new Class<?>[]{iItemDropClass}, handler);
+        return Proxy.newProxyInstance(iLocationDropClass.getClassLoader(), new Class<?>[]{iLocationDropClass}, handler);
+    }
+
+    private void dropGems(String gemId, Object abstractLocation, double amount) {
+        int count = Math.max(1, (int) Math.round(amount));
+        try {
+            Object adapted = adaptLocation.invoke(null, abstractLocation);
+            if (!(adapted instanceof org.bukkit.Location location) || location.getWorld() == null) {
+                plugin().getLogger().warning("MythicMobs 宝石掉落位置无效: " + gemId);
+                return;
+            }
+            for (int i = 0; i < count; i++) {
+                ItemStack gem = buildGem(gemId, 1);
+                location.getWorld().dropItemNaturally(location, gem);
+            }
+        } catch (ReflectiveOperationException e) {
+            plugin().getLogger().log(Level.WARNING, "生成 MythicMobs 宝石掉落失败: " + gemId, e);
+        }
     }
 
     private ItemStack buildGem(String gemId, double amount) {
