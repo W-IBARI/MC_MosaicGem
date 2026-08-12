@@ -4,6 +4,8 @@
 
 A Minecraft server gem socketing plugin. It supports **equipment punching (adding sockets), gem socketing, and gem removal**, with attribute support for **SX-Attribute (lore merging)**, **vanilla attributes (AttributeModifier)**, **enchantments (vanilla / CrazyEnchantments custom enchants)** and **MythicMobs skills/drops**. Built for **Folia 26.2 / Java Edition 26.2**.
 
+> This plugin was developed using DeepSeek V4 Flash: the author designs the system framework and is responsible for feature testing and tuning, and does not participate in code-level design.
+
 ## Features
 
 - **Equipment punching**: use a puncher to add sockets to equipment; success rate and two-dimensional socket limits are configurable

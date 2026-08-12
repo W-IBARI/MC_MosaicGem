@@ -4,6 +4,8 @@
 
 Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性支持 **SX-Attribute（lore 合并）**、**原版属性（AttributeModifier）**、**附魔（原版附魔 / CrazyEnchantments 自定义附魔）** 与 **MythicMobs 技能/掉落**，适配 **Folia 26.2 / Java Edition 26.2**。
 
+> 本插件使用 DeepSeek V4 Flash 开发：作者仅设计系统框架并负责功能测试与调优，不参与代码细节设计。
+
 ## 功能特性
 
 - **装备打孔**：使用打孔器为装备添加孔位，成功率与双维度孔数上限可配置
