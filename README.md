@@ -17,15 +17,17 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 - 服务端：Folia 26.2（Java Edition 26.2）
 - Java：JDK 25+
-- 可选依赖：[SX-Attribute-Folia](https://github.com/Saukiya/SX-Attribute)（宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）
+- 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）
 
-> MosaicGem 将 SX-Attribute 声明为软依赖（softdepend）：未安装时插件本身可正常运行，但宝石属性不会生效。
+> 说明：原版 SX-Attribute 仓库尚未适配 26.2，因此 MosaicGem 推荐使用 [W-IBARI/SX-Attribute-Folia-fixed](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) 提供的 26.2 优化构建版（已去除 MythicMobs 等非必要前置）。
+>
+> MosaicGem 将 SX-Attribute 声明为软依赖（softdepend）：未安装时插件本身可正常运行，仅 `sx_attribute` 类型的宝石属性不会生效；`vanilla_attribute` 与 `enchant` 宝石不受影响，可正常镶嵌。
 
 ## 安装
 
 1. 构建插件（见下文「构建」），或使用已发布的 jar
 2. 将 `MosaicGem-*.jar` 放入服务端 `plugins` 目录
-3. 如需属性生效，同时放入 `SX-Item` 与 `SX-Attribute` 的 jar
+3. 如需 `sx_attribute` 宝石属性生效，同时放入 `SX-Item` 与 `SX-Attribute`（26.2 优化构建版）的 jar
 4. 启动服务端，插件会自动生成 `config.yml`、`messages/zh_cn.yml`、`messages/en_us.yml`、`items/gems.yml`、`items/punchers.yml`、`items/removers.yml`
 5. 按需修改配置后执行 `/mosaicgem reload`
 
@@ -342,6 +344,6 @@ SA测试宝石:
 
 ## 开源许可
 
-本插件基于 [GNU GPL v3](https://github.com/W-IBARI/SX-Attribute-Folia-fixed/blob/main/LICENSE) 开源许可发布（完整条款见仓库内 [LICENSE](LICENSE) 文件）。
+本插件基于 [GNU LGPL v3](https://www.gnu.org/licenses/lgpl-3.0.html) 开源许可发布（完整条款见仓库内 [LICENSE](LICENSE) 文件）。
 
-允许任何人在遵守 GPL v3 条款的前提下使用、修改、分发本插件；修改后对外分发时需保留本许可声明，并以相同许可开源。
+允许任何人在遵守 LGPL-3.0 条款的前提下使用、修改、分发本插件；修改后对外分发时需保留本许可声明，并以相同许可开源。
