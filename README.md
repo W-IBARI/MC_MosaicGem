@@ -1,4 +1,4 @@
-# MC_MosaicGem
+# MosaicGem
 
 Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性支持 **SX-Attribute（lore 合并）** 与 **原版属性（AttributeModifier）**，适配 **Folia 26.2 / Java Edition 26.2**。
 
@@ -110,7 +110,7 @@ settings:
     drag: true            # 拖拽工具到目标物品
 ```
 
-#### socket-lore：装备上的镶嵌信息
+#### socket-lore：装备上的镶嵌信息（两种模式共用）
 
 打孔/镶嵌/拆卸成功后自动更新，展示孔位与宝石：
 
@@ -140,10 +140,12 @@ socket-lore:
 | `{values}` | 宝石数值描述（单行合并，如 `攻击力：20.00、防御力：20.00`） |
 | `{value_lines}` | 宝石数值描述（每个属性单独一行） |
 
-#### attribute-lore：属性面板合并
+#### sx-attribute-lore：SX-Attribute 属性面板合并（仅作用于 `buffType: sx_attribute` 的宝石）
+
+把 `sx_attribute` 宝石的属性合并进装备 lore 属性行，由 SX-Attribute 读取；`vanilla_attribute` 宝石不使用本段配置。
 
 ```yaml
-attribute-lore:
+sx-attribute-lore:
   enabled: true
   names: []                          # 额外需要识别的属性名（一般不需要填）
   new-line: '&r&f{name}：&e{value}'  # 宝石独有属性的新增行模版
@@ -203,7 +205,7 @@ SA测试宝石:
   random:                      # 宝石生成时随机取值，可在 lore/attribute 中引用
     random_value: '10.00~20.00'
   buffType: 'sx_attribute'     # SX 属性：写入 lore，由 SX-Attribute 读取
-  attribute:                   # 格式：属性名：数值
+  attribute:                   # 仅 sx_attribute：格式为「属性名：数值」
     - '攻击力：${random_value}'
     - '防御力：${random_value}'
 
@@ -222,13 +224,14 @@ SA测试宝石:
   random:
     random_value: '5.00~10.00'
   buffType: 'vanilla_attribute'  # 原版属性：直接附加到物品属性修饰符，不修改 lore
-  attribute:                     # 格式：原版属性id：数值
+  attribute:                     # 仅 vanilla_attribute：格式为「原版属性id：数值」
     - 'minecraft:attack_damage: ${random_value}'
     - 'minecraft:attack_speed: 2'
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
-- `sx_attribute` 的属性行写进装备 lore 并参与属性面板合并；`vanilla_attribute` 的属性行直接附加为原版属性修饰符，**不会**修改/覆盖装备 lore
+- `sx_attribute`：属性行写进装备 lore，参与 `sx-attribute-lore` 面板合并（同属性求和、显示总值与加成）
+- `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore
 - 原版属性 id 的显示名在对应语言文件的 `attribute-names` 段中配置，未配置时显示原始 id
 - `targetMaterial` 与 `targetType` 同时配置时需**同时满足**才可操作
 - 支持的装备类型：`SWORD`、`SPEAR`、`AXE`、`HELMET`、`CHESTPLATE`、`LEGGINGS`、`BOOTS`、`ELYTRA`

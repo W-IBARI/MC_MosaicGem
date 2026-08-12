@@ -1,1 +1,1 @@
-rootProject.name = "MC_MosaicGem"
+rootProject.name = "MosaicGem"

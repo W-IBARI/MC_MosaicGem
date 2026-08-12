@@ -30,13 +30,13 @@ public class GemService {
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
     private final ItemFactory factory;
-    private final AttributeLoreService attributeLoreService;
+    private final SxAttributeLoreService attributeLoreService;
 
     public GemService(MosaicGemPlugin plugin, ConfigManager configs, ItemFactory factory) {
         this.plugin = plugin;
         this.configs = configs;
         this.factory = factory;
-        this.attributeLoreService = new AttributeLoreService(configs, factory);
+        this.attributeLoreService = new SxAttributeLoreService(configs, factory);
     }
 
     public record Combo(ToolType toolType, ItemDefinition definition, ItemStack tool, ItemStack target) {

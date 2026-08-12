@@ -227,7 +227,7 @@ public class ConfigManager {
         return SocketLoreTemplate.from(config.getConfigurationSection("socket-lore"));
     }
 
-    public AttributeLoreConfig attributeLore() {
-        return AttributeLoreConfig.from(config.getConfigurationSection("attribute-lore"));
+    public SxAttributeLoreConfig sxAttributeLore() {
+        return SxAttributeLoreConfig.from(config.getConfigurationSection("sx-attribute-lore"));
     }
 }

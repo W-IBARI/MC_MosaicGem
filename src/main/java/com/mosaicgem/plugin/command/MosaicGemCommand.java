@@ -10,7 +10,7 @@ import com.mosaicgem.plugin.config.SocketLoreTemplate;
 import com.mosaicgem.plugin.model.SocketData;
 import com.mosaicgem.plugin.model.SocketedGem;
 import com.mosaicgem.plugin.model.ToolType;
-import com.mosaicgem.plugin.service.AttributeLoreService;
+import com.mosaicgem.plugin.service.SxAttributeLoreService;
 import com.mosaicgem.plugin.util.ItemFactory;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
@@ -366,7 +366,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             sources.put("测试打孔器", 1);
             factory.writeSocketData(sword, 1, sources, List.of(gem));
 
-            AttributeLoreService attributeLoreService = new AttributeLoreService(configs, factory);
+            SxAttributeLoreService attributeLoreService = new SxAttributeLoreService(configs, factory);
             attributeLoreService.update(sword, List.of(gem));
             factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem)), configs.socketLore());
             Component mergedComponent = sword.lore().stream()
@@ -379,7 +379,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             java.util.function.Function<String, String> escape = s -> s.replace("\u00A7", "\\u00A7").replace("\u200B", "\\u200B");
             List<String> resultLore = sword.getItemMeta().getLore();
             String mergedLine = resultLore.get(1);
-            boolean hasMarker = mergedLine.contains(AttributeLoreService.MARKER);
+            boolean hasMarker = mergedLine.contains(SxAttributeLoreService.MARKER);
             boolean hasSectionX = mergedLine.contains("\u00A7X");
             boolean hasZw = mergedLine.contains("\u200B");
             boolean resetMainHand = resultLore.get(0).contains("\u00A7r");
@@ -410,8 +410,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             factory.applySocketLore(sword, new SocketData(1, sources, List.of(gem, gem2)), configs.socketLore());
             List<String> loreAfterSecond = sword.getItemMeta().getLore();
             long attackLines = loreAfterSecond.stream()
-                    .filter(line -> line.contains(AttributeLoreService.MARKER)
-                            && !line.startsWith(AttributeLoreService.MARKER)
+                    .filter(line -> line.contains(SxAttributeLoreService.MARKER)
+                            && !line.startsWith(SxAttributeLoreService.MARKER)
                             && ItemFactory.stripLoreText(line).startsWith("攻击力"))
                     .count();
             long holeLines = loreAfterSecond.stream().filter(line -> line.contains("孔位")).count();

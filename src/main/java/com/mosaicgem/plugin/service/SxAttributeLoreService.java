@@ -1,6 +1,6 @@
 package com.mosaicgem.plugin.service;
 
-import com.mosaicgem.plugin.config.AttributeLoreConfig;
+import com.mosaicgem.plugin.config.SxAttributeLoreConfig;
 import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.config.GemDefinition;
 import com.mosaicgem.plugin.model.SocketedGem;
@@ -20,10 +20,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 属性面板合并：把宝石属性合并进物品原有的属性 lore 行，
+ * SX-Attribute 属性面板合并：把 sx_attribute 宝石属性合并进物品原有的属性 lore 行，
  * 显示为「总值（+宝石加成）」，并用 §X 标记隔离加成文字，SX 只解析纯数值。
  */
-public class AttributeLoreService {
+public class SxAttributeLoreService {
 
     /** 合并行标记：SX 解析 §X 之前的内容，标记后的加成文字不影响属性计算 */
     public static final String MARKER = ItemFactory.LORE_MARKER;
@@ -34,7 +34,7 @@ public class AttributeLoreService {
     private final ConfigManager configs;
     private final ItemFactory factory;
 
-    public AttributeLoreService(ConfigManager configs, ItemFactory factory) {
+    public SxAttributeLoreService(ConfigManager configs, ItemFactory factory) {
         this.configs = configs;
         this.factory = factory;
     }
@@ -46,7 +46,7 @@ public class AttributeLoreService {
         if (item == null || item.getType().isAir()) {
             return;
         }
-        AttributeLoreConfig cfg = configs.attributeLore();
+        SxAttributeLoreConfig cfg = configs.sxAttributeLore();
         if (!cfg.enabled()) {
             return;
         }
@@ -137,7 +137,7 @@ public class AttributeLoreService {
         }
     }
 
-    private void applyBonuses(List<String> lore, Map<String, String> baseLines, Map<String, Bonus> bonuses, AttributeLoreConfig cfg) {
+    private void applyBonuses(List<String> lore, Map<String, String> baseLines, Map<String, Bonus> bonuses, SxAttributeLoreConfig cfg) {
         if (bonuses.isEmpty()) {
             return;
         }
