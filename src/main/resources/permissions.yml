@@ -1,0 +1,23 @@
+# 指令权限配置
+# 每个指令可配置多个权限节点，玩家满足任意一个即可使用；
+# 留空列表（permissions: []）表示不需要任何权限，所有玩家可用；
+# 未配置的指令回退到插件内置默认权限。
+#
+# 本文件与 LuckPerms 等权限插件完全兼容：直接给玩家/用户组分配这里的节点即可，
+# 例如：/lp user <玩家> permission set mosaicgem.reload true
+commands:
+  reload:
+    permissions:
+      - mosaicgem.reload
+  give:
+    permissions:
+      - mosaicgem.give
+  debug:
+    permissions:
+      - mosaicgem.debug
+  list:
+    permissions:
+      - mosaicgem.list
+  selftest:
+    permissions:
+      - mosaicgem.debug

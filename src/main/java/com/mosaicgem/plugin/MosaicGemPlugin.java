@@ -38,6 +38,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
         saveDefaultConfig();
         saveMessageFiles();
         saveItemFiles();
+        saveResourceIfAbsent("permissions.yml");
 
         configManager = new ConfigManager(this);
         configManager.load();
@@ -67,6 +68,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
         saveDefaultConfig();
         saveMessageFiles();
         saveItemFiles();
+        saveResourceIfAbsent("permissions.yml");
         reloadConfig();
         configManager.load();
         getLogger().info("配置已重载，当前语言: " + configManager.language());

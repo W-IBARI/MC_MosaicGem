@@ -91,7 +91,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 ## 指令与权限
 
-| 指令 | 说明 | 权限 |
+| 指令 | 说明 | 默认权限节点（可在 permissions.yml 修改） |
 | --- | --- | --- |
 | `/mosaicgem reload` | 重载全部配置文件（缺失的 yml 自动补齐） | `mosaicgem.reload`（默认 OP） |
 | `/mosaicgem give <id> [数量] [玩家]` | 给予宝石/打孔器/拆卸器（自动匹配类型，不区分） | `mosaicgem.give`（默认 OP） |
@@ -100,6 +100,8 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 | `/mosaicgem selftest` | 无玩家环境自检：配置解析、物品生成、数据读写、属性合并 | `mosaicgem.debug` |
 
 指令别名：`/mg`、`/mgem`。
+
+> 上表权限均为默认值；每个指令实际要求哪些权限节点由 `permissions.yml` 决定（见下文），不再硬编码。
 
 ## 配置文件
 
@@ -116,6 +118,34 @@ settings:
     crafting: true        # 工作台/随身合成
     drag: true            # 拖拽工具到目标物品
 ```
+
+### permissions.yml：指令权限
+
+根目录的 `permissions.yml` 用于自定义每个指令所需的权限节点，不再硬编码：
+
+```yaml
+commands:
+  reload:
+    permissions:
+      - mosaicgem.reload
+  give:
+    permissions:
+      - mosaicgem.give
+  debug:
+    permissions:
+      - mosaicgem.debug
+  list:
+    permissions:
+      - mosaicgem.list
+  selftest:
+    permissions:
+      - mosaicgem.debug
+```
+
+- 每个指令可配置多个节点，玩家满足任意一个即可使用
+- `permissions: []`（空列表）表示该指令不需要任何权限，所有玩家可用
+- 未在文件中配置的指令回退到插件内置默认节点（即上表默认值）
+- 使用 LuckPerms 等权限插件时无需任何额外适配：直接给玩家/用户组分配这里配置的节点即可（如 `/lp user <玩家> permission set mosaicgem.reload true`），Bukkit 的标准权限系统会自动交给 LuckPerms 判定
 
 #### socket-lore：装备上的镶嵌信息（三种模式共用）
 

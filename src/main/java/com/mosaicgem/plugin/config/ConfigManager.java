@@ -6,6 +6,7 @@ import com.mosaicgem.plugin.model.ToolType;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.command.CommandSender;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -29,6 +31,7 @@ public class ConfigManager {
     private FileConfiguration config;
     private FileConfiguration messages;
     private FileConfiguration messageDefaults;
+    private FileConfiguration permissions;
     private String language = DEFAULT_LANGUAGE;
 
     private final Map<String, GemDefinition> gems = new LinkedHashMap<>();
@@ -41,6 +44,7 @@ public class ConfigManager {
 
     public void load() {
         config = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "config.yml"));
+        permissions = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "permissions.yml"));
         language = resolveLanguage(config.getString("settings.language", DEFAULT_LANGUAGE));
         messages = loadMessages(language);
         gems.clear();
@@ -196,6 +200,50 @@ public class ConfigManager {
 
     public boolean isInteractionEnabled(String name) {
         return config.getBoolean("settings.interactions." + name, true);
+    }
+
+    /**
+     * 判断发送者是否有权执行指定指令。
+     * 权限节点来自根目录 permissions.yml，可被 LuckPerms 等权限插件管理。
+     */
+    public boolean hasCommandPermission(CommandSender sender, String command) {
+        if (sender == null || sender.isOp()) {
+            return true;
+        }
+        List<String> nodes = commandPermissionNodes(command);
+        if (nodes.isEmpty()) {
+            return true;
+        }
+        for (String node : nodes) {
+            if (node != null && !node.isBlank() && sender.hasPermission(node.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 获取指令要求的权限节点列表；未在 permissions.yml 中配置时回退到内置默认节点。
+     */
+    public List<String> commandPermissionNodes(String command) {
+        if (command == null) {
+            return List.of();
+        }
+        String path = "commands." + command + ".permissions";
+        if (permissions.contains(path)) {
+            return permissions.getStringList(path);
+        }
+        return defaultCommandNodes(command);
+    }
+
+    private List<String> defaultCommandNodes(String command) {
+        return switch (command.toLowerCase(Locale.ROOT)) {
+            case "reload" -> List.of("mosaicgem.reload");
+            case "give" -> List.of("mosaicgem.give");
+            case "debug", "selftest" -> List.of("mosaicgem.debug");
+            case "list" -> List.of("mosaicgem.list");
+            default -> List.of();
+        };
     }
 
     public String language() {

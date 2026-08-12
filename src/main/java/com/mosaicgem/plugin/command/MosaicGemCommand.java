@@ -80,7 +80,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     // ------------------------------------------------------------------
 
     private boolean reload(CommandSender sender) {
-        if (!hasPermission(sender, "mosaicgem.reload")) {
+        if (!hasPermission(sender, "reload")) {
             return true;
         }
         plugin.reloadConfigs();
@@ -89,7 +89,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean give(CommandSender sender, String[] args) {
-        if (!hasPermission(sender, "mosaicgem.give")) {
+        if (!hasPermission(sender, "give")) {
             return true;
         }
         if (args.length < 2) {
@@ -160,7 +160,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean debug(CommandSender sender, String[] args) {
-        if (!hasPermission(sender, "mosaicgem.debug")) {
+        if (!hasPermission(sender, "debug")) {
             return true;
         }
         Player target = null;
@@ -241,7 +241,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean list(CommandSender sender, String[] args) {
-        if (!hasPermission(sender, "mosaicgem.list")) {
+        if (!hasPermission(sender, "list")) {
             return true;
         }
         if (args.length < 2) {
@@ -269,7 +269,7 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
      * 自检：不依赖玩家环境，验证配置解析、物品生成与组件读写。
      */
     private boolean selftest(CommandSender sender) {
-        if (!hasPermission(sender, "mosaicgem.debug")) {
+        if (!hasPermission(sender, "selftest")) {
             return true;
         }
         List<String> lines = new ArrayList<>();
@@ -597,6 +597,20 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "颜色模板: " + e.getMessage()));
         }
 
+        try {
+            // 指令权限：应从 permissions.yml 读取，未配置时回退到内置默认节点
+            if (!configs.commandPermissionNodes("reload").contains("mosaicgem.reload")
+                    || !configs.commandPermissionNodes("give").contains("mosaicgem.give")
+                    || !configs.commandPermissionNodes("debug").contains("mosaicgem.debug")
+                    || !configs.commandPermissionNodes("selftest").contains("mosaicgem.debug")) {
+                throw new IllegalStateException("指令权限节点读取异常: " + configs.commandPermissionNodes("reload"));
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "权限配置: " + e.getMessage()));
+        }
+
         sender.sendMessage(ItemFactory.colorize(configs.message("selftest-title")));
         sender.sendMessage(ItemFactory.colorize(configs.message("selftest-pass-fail")
                 .replace("{ok}", String.valueOf(ok))
@@ -664,8 +678,8 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
     // 工具方法
     // ------------------------------------------------------------------
 
-    private boolean hasPermission(CommandSender sender, String permission) {
-        if (sender.hasPermission(permission)) {
+    private boolean hasPermission(CommandSender sender, String command) {
+        if (configs.hasCommandPermission(sender, command)) {
             return true;
         }
         send(sender, configs.message("no-permission"));
