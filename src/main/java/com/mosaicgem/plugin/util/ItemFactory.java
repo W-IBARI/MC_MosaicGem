@@ -20,6 +20,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -28,10 +29,12 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -46,6 +49,15 @@ public class ItemFactory {
 
     /** 宝石加成方式：原版属性（直接附加到物品属性修饰符） */
     public static final String BUFF_TYPE_VANILLA = "vanilla_attribute";
+
+    /** 宝石加成方式：原版附魔（附加/叠加到物品的原版附魔） */
+    public static final String BUFF_TYPE_ENCHANT = "enchant";
+
+    /** CrazyEnchantments 附魔 id 前缀（配置使用 ce:Wither 格式） */
+    public static final String CRAZY_ENCHANT_PREFIX = "ce:";
+
+    /** CrazyEnchantments 附魔 id 前缀的别名，与 ce: 等价 */
+    public static final String CRAZY_ENCHANT_PREFIX_ALT = "crazy:";
 
     /** 属性合并行标记（数值后）：SX 解析 §X 之前的内容，§X 为无效代码客户端静默忽略 */
     public static final String LORE_MARKER = "\u00A7X";
@@ -64,6 +76,7 @@ public class ItemFactory {
     private final NamespacedKey keySocketLines;
     private final NamespacedKey keyBaseLines;
     private final NamespacedKey keyVanillaNatives;
+    private final NamespacedKey keyEnchantNatives;
     private final NamespacedKey keyUuid;
     private final NamespacedKey keyCount;
     private final NamespacedKey keySources;
@@ -79,6 +92,7 @@ public class ItemFactory {
         this.keySocketLines = key("socketLines");
         this.keyBaseLines = key("baseLines");
         this.keyVanillaNatives = key("vanillaNatives");
+        this.keyEnchantNatives = key("enchantNatives");
         this.keyUuid = key("uuid");
         this.keyCount = key("count");
         this.keySources = key("sources");
@@ -469,6 +483,13 @@ public class ItemFactory {
                     .map(attr -> configs.attributeName(attr.id()) + "：" + resolve(attr.value(), gem.values()))
                     .collect(Collectors.joining("、"));
         }
+        if (BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
+            return definition.getAttribute().stream()
+                    .map(ItemFactory::parseVanillaAttribute)
+                    .filter(Objects::nonNull)
+                    .map(attr -> enchantDisplay(normalizeEnchantId(attr.id()), resolve(attr.value(), gem.values())))
+                    .collect(Collectors.joining("、"));
+        }
         return definition.getAttribute().stream()
                 .map(line -> resolve(line, gem.values()))
                 .map(ItemFactory::stripLoreText)
@@ -490,6 +511,15 @@ public class ItemFactory {
                 VanillaAttribute attribute = parseVanillaAttribute(line);
                 if (attribute != null) {
                     result.add(configs.attributeName(attribute.id()) + "：" + resolve(attribute.value(), gem.values()));
+                }
+            }
+            return result;
+        }
+        if (BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
+            for (String line : definition.getAttribute()) {
+                VanillaAttribute attribute = parseVanillaAttribute(line);
+                if (attribute != null) {
+                    result.add(enchantDisplay(normalizeEnchantId(attribute.id()), resolve(attribute.value(), gem.values())));
                 }
             }
             return result;
@@ -723,6 +753,226 @@ public class ItemFactory {
             container.set(keyCount, PersistentDataType.INTEGER, index);
             pdc.set(keyVanillaNatives, PersistentDataType.TAG_CONTAINER, container);
         });
+    }
+
+    // ------------------------------------------------------------------
+    // 附魔（enchant）
+    // ------------------------------------------------------------------
+
+    /**
+     * 重建物品的附魔：
+     * - 首次镶嵌时把物品现有的全部附魔等级（原版 + CrazyEnchantments）记入 PDC
+     * - 汇总所有已镶嵌附魔宝石的等级（同附魔求和）
+     * - 最终等级 = 原等级 + 宝石合计，已存在则叠加，不存在则新建
+     * - 宝石全部取下后还原为原始等级
+     */
+    public void rebuildEnchantments(ItemStack item, List<SocketedGem> gems) {
+        if (item == null || item.getType().isAir()) {
+            return;
+        }
+
+        // 1. 汇总附魔宝石按附魔 id 的总等级
+        Map<String, Integer> totals = new LinkedHashMap<>();
+        for (SocketedGem gem : gems) {
+            GemDefinition definition = configs.getGem(gem.id());
+            if (definition == null || !BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
+                continue;
+            }
+            for (String line : definition.getAttribute()) {
+                VanillaAttribute parsed = parseVanillaAttribute(line);
+                if (parsed == null) {
+                    continue;
+                }
+                String resolved = resolve(parsed.value(), gem.values());
+                try {
+                    int level = (int) Math.round(Double.parseDouble(resolved.trim()));
+                    if (level == 0) {
+                        continue;
+                    }
+                    totals.merge(normalizeEnchantId(parsed.id()), level, Integer::sum);
+                } catch (NumberFormatException ignored) {
+                    plugin.getLogger().warning("附魔宝石 [" + gem.id() + "] 的附魔等级不是有效数字: " + resolved);
+                }
+            }
+        }
+
+        // 2. 原等级：优先取 PDC 中的原生记录；没有记录的（首次/外部新加）取当前物品等级
+        Map<String, Integer> storedNatives = new LinkedHashMap<>(readEnchantNatives(item));
+        Map<String, Integer> current = readAllEnchantments(item);
+        Set<String> managed = new LinkedHashSet<>(storedNatives.keySet());
+        managed.addAll(totals.keySet());
+
+        Map<String, Integer> natives = new LinkedHashMap<>();
+        for (String id : managed) {
+            Integer stored = storedNatives.get(id);
+            natives.put(id, stored != null ? stored : current.getOrDefault(id, 0));
+        }
+
+        // 3. 移除受管附魔后按“原等级 + 宝石等级”重写
+        for (String id : natives.keySet()) {
+            removeManagedEnchantment(item, id);
+        }
+        for (Map.Entry<String, Integer> entry : natives.entrySet()) {
+            int level = entry.getValue() + totals.getOrDefault(entry.getKey(), 0);
+            if (level > 0) {
+                applyManagedEnchantment(item, entry.getKey(), level);
+            }
+        }
+
+        // 4. 记录原生等级；全部附魔宝石取下后清空记录（下次镶嵌重新快照）
+        if (totals.isEmpty()) {
+            writeEnchantNatives(item, Map.of());
+        } else {
+            writeEnchantNatives(item, natives);
+        }
+    }
+
+    /**
+     * 读取物品上的全部附魔（原版 + CrazyEnchantments），返回规范化 id -> 等级。
+     */
+    private Map<String, Integer> readAllEnchantments(ItemStack item) {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        for (Map.Entry<Enchantment, Integer> entry : item.getEnchantments().entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            result.put("minecraft:" + entry.getKey().getKey().getKey(), entry.getValue());
+        }
+        for (Map.Entry<String, Integer> entry : CrazyEnchantBridge.getEnchantments(item).entrySet()) {
+            result.put(CRAZY_ENCHANT_PREFIX + entry.getKey(), entry.getValue());
+        }
+        return result;
+    }
+
+    private void removeManagedEnchantment(ItemStack item, String id) {
+        if (isCrazyEnchantId(id)) {
+            String name = crazyNameOf(id);
+            if (CrazyEnchantBridge.getEnchantments(item).containsKey(name)) {
+                CrazyEnchantBridge.removeEnchantments(item, List.of(name));
+            }
+            return;
+        }
+        Enchantment enchantment = vanillaEnchantment(id);
+        if (enchantment != null) {
+            item.removeEnchantment(enchantment);
+        }
+    }
+
+    private void applyManagedEnchantment(ItemStack item, String id, int level) {
+        if (isCrazyEnchantId(id)) {
+            if (!CrazyEnchantBridge.isAvailable()) {
+                plugin.getLogger().warning("服务器未安装/启用 CrazyEnchantments，无法镶嵌自定义附魔: " + id);
+                return;
+            }
+            CrazyEnchantBridge.setEnchantment(item, crazyNameOf(id), level);
+            return;
+        }
+        Enchantment enchantment = vanillaEnchantment(id);
+        if (enchantment == null) {
+            plugin.getLogger().warning("未知的附魔 id，已跳过: " + id);
+            return;
+        }
+        try {
+            item.addUnsafeEnchantment(enchantment, level);
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().warning("无法给物品附加附魔 " + id + " Lv." + level + "（" + e.getMessage() + "）");
+        }
+    }
+
+    private Map<String, Integer> readEnchantNatives(ItemStack item) {
+        PersistentDataContainer container = item.getPersistentDataContainer().get(keyEnchantNatives, PersistentDataType.TAG_CONTAINER);
+        Map<String, Integer> result = new LinkedHashMap<>();
+        if (container == null) {
+            return result;
+        }
+        int count = container.getOrDefault(keyCount, PersistentDataType.INTEGER, 0);
+        for (int i = 0; i < count; i++) {
+            String id = container.get(key("e" + i), PersistentDataType.STRING);
+            Integer level = container.get(key("l" + i), PersistentDataType.INTEGER);
+            if (id != null && level != null) {
+                result.put(id, level);
+            }
+        }
+        return result;
+    }
+
+    private void writeEnchantNatives(ItemStack item, Map<String, Integer> entries) {
+        item.editPersistentDataContainer(pdc -> {
+            if (entries == null || entries.isEmpty()) {
+                pdc.remove(keyEnchantNatives);
+                return;
+            }
+            PersistentDataContainer container = pdc.getAdapterContext().newPersistentDataContainer();
+            int index = 0;
+            for (Map.Entry<String, Integer> entry : entries.entrySet()) {
+                if (entry.getValue() == null) {
+                    continue;
+                }
+                container.set(key("e" + index), PersistentDataType.STRING, entry.getKey());
+                container.set(key("l" + index), PersistentDataType.INTEGER, entry.getValue());
+                index++;
+            }
+            container.set(keyCount, PersistentDataType.INTEGER, index);
+            pdc.set(keyEnchantNatives, PersistentDataType.TAG_CONTAINER, container);
+        });
+    }
+
+    /**
+     * 生成附魔宝石的数值描述：附魔名 +N（如“锋利 +3”）。
+     */
+    private String enchantDisplay(String id, String resolved) {
+        String name = configs.enchantName(id);
+        if (name.equals(id) && isCrazyEnchantId(id)) {
+            String custom = CrazyEnchantBridge.getDisplayName(crazyNameOf(id));
+            if (custom != null && !custom.equalsIgnoreCase(crazyNameOf(id))) {
+                name = custom;
+            }
+        }
+        try {
+            int level = (int) Math.round(Double.parseDouble(resolved.trim()));
+            return name + " " + (level >= 0 ? "+" : "") + level;
+        } catch (NumberFormatException e) {
+            return name + " " + resolved;
+        }
+    }
+
+    /**
+     * 规范化附魔 id：裸 id 补 minecraft: 前缀；crazy: 别名统一为 ce:。
+     */
+    static String normalizeEnchantId(String id) {
+        String trimmed = id == null ? "" : id.trim();
+        if (trimmed.isEmpty()) {
+            return trimmed;
+        }
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (lower.startsWith(CRAZY_ENCHANT_PREFIX_ALT)) {
+            return CRAZY_ENCHANT_PREFIX + trimmed.substring(CRAZY_ENCHANT_PREFIX_ALT.length());
+        }
+        if (lower.startsWith(CRAZY_ENCHANT_PREFIX)) {
+            return trimmed;
+        }
+        return trimmed.contains(":") ? trimmed : "minecraft:" + trimmed;
+    }
+
+    private static boolean isCrazyEnchantId(String id) {
+        return id != null && (id.toLowerCase(Locale.ROOT).startsWith(CRAZY_ENCHANT_PREFIX)
+                || id.toLowerCase(Locale.ROOT).startsWith(CRAZY_ENCHANT_PREFIX_ALT));
+    }
+
+    private static String crazyNameOf(String id) {
+        int index = id.indexOf(':');
+        return index >= 0 && index + 1 < id.length() ? id.substring(index + 1) : id;
+    }
+
+    private static Enchantment vanillaEnchantment(String id) {
+        if (id == null) {
+            return null;
+        }
+        String key = id.toLowerCase(Locale.ROOT);
+        if (key.startsWith("minecraft:")) {
+            key = key.substring("minecraft:".length());
+        }
+        return Enchantment.getByKey(NamespacedKey.minecraft(key));
     }
 
     private record NativeEntry(String attributeId, String key, double amount, String group, String display) {

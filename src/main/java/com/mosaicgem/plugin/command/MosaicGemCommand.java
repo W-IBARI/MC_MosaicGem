@@ -27,6 +27,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -493,6 +494,48 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         } catch (Exception e) {
             fail++;
             lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "原版: " + e.getMessage()));
+        }
+
+        try {
+            // 附魔：已有附魔叠加、无附魔新建、多颗宝石合计、取下后还原原始等级
+            GemDefinition enchantDefinition = configs.getGem("附魔测试宝石");
+            if (enchantDefinition == null) {
+                throw new IllegalStateException("缺少附魔测试宝石配置");
+            }
+            Enchantment sharpness = Enchantment.getByKey(NamespacedKey.minecraft("sharpness"));
+            Enchantment unbreaking = Enchantment.getByKey(NamespacedKey.minecraft("unbreaking"));
+            if (sharpness == null || unbreaking == null) {
+                throw new IllegalStateException("服务器未注册 sharpness/unbreaking 附魔");
+            }
+            ItemStack enchantSword = new ItemStack(Material.IRON_SWORD);
+            enchantSword.addUnsafeEnchantment(sharpness, 2);
+
+            Map<String, String> enchantValues1 = new LinkedHashMap<>();
+            enchantValues1.put("random_value", "3");
+            Map<String, String> enchantValues2 = new LinkedHashMap<>();
+            enchantValues2.put("random_value", "4");
+            SocketedGem enchantGem1 = new SocketedGem(enchantDefinition.getId(), "e-uuid-1", enchantValues1, List.of());
+            SocketedGem enchantGem2 = new SocketedGem(enchantDefinition.getId(), "e-uuid-2", enchantValues2, List.of());
+
+            factory.rebuildEnchantments(enchantSword, List.of(enchantGem1, enchantGem2));
+            if (enchantSword.getEnchantmentLevel(sharpness) != 9) {
+                throw new IllegalStateException("原附魔未正确叠加: sharpness=" + enchantSword.getEnchantmentLevel(sharpness));
+            }
+            if (enchantSword.getEnchantmentLevel(unbreaking) != 2) {
+                throw new IllegalStateException("无原附魔时未按宝石等级新建: unbreaking=" + enchantSword.getEnchantmentLevel(unbreaking));
+            }
+
+            factory.rebuildEnchantments(enchantSword, List.of());
+            if (enchantSword.getEnchantmentLevel(sharpness) != 2) {
+                throw new IllegalStateException("取下附魔宝石后未还原: sharpness=" + enchantSword.getEnchantmentLevel(sharpness));
+            }
+            if (enchantSword.containsEnchantment(unbreaking)) {
+                throw new IllegalStateException("取下附魔宝石后新增附魔未移除");
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "附魔: " + e.getMessage()));
         }
 
         try {

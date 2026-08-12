@@ -53,8 +53,9 @@ public class ConfigManager {
         int warnings = 0;
         for (GemDefinition gem : gems.values()) {
             if (!ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(gem.getBuffType())
-                    && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(gem.getBuffType())) {
-                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType() + "（当前仅支持 sx_attribute / vanilla_attribute，属性将不会注入）");
+                    && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(gem.getBuffType())
+                    && !ItemFactory.BUFF_TYPE_ENCHANT.equalsIgnoreCase(gem.getBuffType())) {
+                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType() + "（当前仅支持 sx_attribute / vanilla_attribute / enchant，属性将不会注入）");
                 warnings++;
             }
         }
@@ -216,6 +217,21 @@ public class ConfigManager {
             return id;
         }
         ConfigurationSection section = messages.getConfigurationSection("attribute-names");
+        if (section == null) {
+            return id;
+        }
+        Object name = section.getValues(false).get(id);
+        return name != null ? name.toString() : id;
+    }
+
+    /**
+     * 获取附魔 id 的显示名（来自语言文件 enchant-names 段）。
+     */
+    public String enchantName(String id) {
+        if (id == null) {
+            return id;
+        }
+        ConfigurationSection section = messages.getConfigurationSection("enchant-names");
         if (section == null) {
             return id;
         }

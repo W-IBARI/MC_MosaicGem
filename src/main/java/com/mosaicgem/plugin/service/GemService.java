@@ -93,6 +93,7 @@ public class GemService {
                 ItemStack preview = combo.target().clone();
                 factory.writeSocketData(preview, data.holes(), data.holeSources(), gems);
                 factory.rebuildVanillaAttributes(preview, gems);
+                factory.rebuildEnchantments(preview, gems);
                 attributeLoreService.update(preview, gems);
                 factory.applySocketLore(preview, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
                 yield preview;
@@ -107,6 +108,8 @@ public class GemService {
                 gems.remove(gems.size() - 1);
                 ItemStack preview = combo.target().clone();
                 factory.writeSocketData(preview, data.holes(), data.holeSources(), gems);
+                factory.rebuildVanillaAttributes(preview, gems);
+                factory.rebuildEnchantments(preview, gems);
                 attributeLoreService.update(preview, gems);
                 factory.applySocketLore(preview, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
                 yield preview;
@@ -164,7 +167,8 @@ public class GemService {
             return fail(configs.message("socket-full"), target, false);
         }
         if (!ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(definition.getBuffType())
-                && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())) {
+                && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())
+                && !ItemFactory.BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
             return fail(configs.message("socket-bufftype-unsupported"), target, false);
         }
         if (definition.getRepetitions() != null) {
@@ -187,6 +191,7 @@ public class GemService {
         ItemStack result = target.clone();
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.rebuildVanillaAttributes(result, gems);
+        factory.rebuildEnchantments(result, gems);
         attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
         return new OperationResult(result, null, true, configs.message("socket-success"));
@@ -217,6 +222,7 @@ public class GemService {
         factory.writeSocketData(result, data.holes(), data.holeSources(), gems);
         factory.removeLoreLines(result, removed.lines());
         factory.rebuildVanillaAttributes(result, gems);
+        factory.rebuildEnchantments(result, gems);
         attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
 
@@ -236,10 +242,6 @@ public class GemService {
                 .map(line -> factory.resolve(line, values))
                 .map(ItemFactory::colorize)
                 .toList();
-    }
-
-    private boolean isVanillaAttribute(GemDefinition definition) {
-        return ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType());
     }
 
     private ItemStack buildReturnedGem(SocketedGem gem) {

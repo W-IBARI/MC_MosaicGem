@@ -8,7 +8,7 @@
 #   socket-no-hole              Socket: item has no holes yet
 #   socket-full                 Socket: item holes are full
 #   socket-repeat-limit         Socket: this gem reached its repeat-socketing limit
-#   socket-bufftype-unsupported Socket: gem buffType is unsupported (only sx_attribute)
+#   socket-bufftype-unsupported Socket: gem buffType is unsupported (only sx_attribute / vanilla_attribute / enchant)
 #   remove-empty                Remove: item has no socketed gems
 #   remove-fail                 Remove: success-rate check failed (tool consumed)
 #   target-invalid              Operation: target item type/material does not match tool limits
@@ -119,3 +119,49 @@ attribute-names:
   'minecraft:explosion_knockback_resistance': Explosion Knockback Resistance
   'minecraft:step_height': Step Height
   'minecraft:scale': Scale
+
+# Enchant id -> display name mapping (used in socket lore for enchant gems)
+# Vanilla enchants use the minecraft: prefix; CrazyEnchantments use the ce: prefix (e.g. ce:Wither)
+enchant-names:
+  'minecraft:sharpness': Sharpness
+  'minecraft:smite': Smite
+  'minecraft:bane_of_arthropods': Bane of Arthropods
+  'minecraft:knockback': Knockback
+  'minecraft:fire_aspect': Fire Aspect
+  'minecraft:looting': Looting
+  'minecraft:sweeping_edge': Sweeping Edge
+  'minecraft:efficiency': Efficiency
+  'minecraft:silk_touch': Silk Touch
+  'minecraft:unbreaking': Unbreaking
+  'minecraft:fortune': Fortune
+  'minecraft:protection': Protection
+  'minecraft:fire_protection': Fire Protection
+  'minecraft:feather_falling': Feather Falling
+  'minecraft:blast_protection': Blast Protection
+  'minecraft:projectile_protection': Projectile Protection
+  'minecraft:respiration': Respiration
+  'minecraft:aqua_affinity': Aqua Affinity
+  'minecraft:thorns': Thorns
+  'minecraft:depth_strider': Depth Strider
+  'minecraft:frost_walker': Frost Walker
+  'minecraft:binding_curse': Binding Curse
+  'minecraft:vanishing_curse': Vanishing Curse
+  'minecraft:mending': Mending
+  'minecraft:soul_speed': Soul Speed
+  'minecraft:swift_sneak': Swift Sneak
+  'minecraft:power': Power
+  'minecraft:punch': Punch
+  'minecraft:flame': Flame
+  'minecraft:infinity': Infinity
+  'minecraft:luck_of_the_sea': Luck of the Sea
+  'minecraft:lure': Lure
+  'minecraft:channeling': Channeling
+  'minecraft:impaling': Impaling
+  'minecraft:loyalty': Loyalty
+  'minecraft:riptide': Riptide
+  'minecraft:multishot': Multishot
+  'minecraft:piercing': Piercing
+  'minecraft:quick_charge': Quick Charge
+  'minecraft:wind_burst': Wind Burst
+  'minecraft:density': Density
+  'minecraft:breach': Breach
