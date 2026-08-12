@@ -534,6 +534,16 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             if (enchantSword.containsEnchantment(unbreaking)) {
                 throw new IllegalStateException("取下附魔宝石后新增附魔未移除");
             }
+            // 镶嵌信息应显示映射名（如“锋利”），而不是附魔内部名（minecraft:sharpness）
+            String mappedName = configs.enchantName("minecraft:sharpness");
+            if ("minecraft:sharpness".equals(mappedName)) {
+                throw new IllegalStateException("enchant-names 映射未生效: " + mappedName);
+            }
+            List<String> displayLines = factory.resolveGemValueList(
+                    new SocketedGem(enchantDefinition.getId(), "e-uuid-display", enchantValues1, List.of()));
+            if (displayLines.isEmpty() || ItemFactory.stripLoreText(displayLines.get(0)).contains("minecraft:")) {
+                throw new IllegalStateException("镶嵌信息显示了附魔内部名: " + displayLines);
+            }
             ok++;
         } catch (Exception e) {
             fail++;

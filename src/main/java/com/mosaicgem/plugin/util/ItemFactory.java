@@ -989,7 +989,9 @@ public class ItemFactory {
         if (lower.startsWith(CRAZY_ENCHANT_PREFIX)) {
             return trimmed;
         }
-        return trimmed.contains(":") ? trimmed : "minecraft:" + trimmed;
+        return trimmed.contains(":")
+                ? trimmed.toLowerCase(Locale.ROOT)
+                : "minecraft:" + trimmed.toLowerCase(Locale.ROOT);
     }
 
     private static boolean isCrazyEnchantId(String id) {

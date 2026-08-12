@@ -28,6 +28,7 @@ public class ConfigManager {
 
     private FileConfiguration config;
     private FileConfiguration messages;
+    private FileConfiguration messageDefaults;
     private String language = DEFAULT_LANGUAGE;
 
     private final Map<String, GemDefinition> gems = new LinkedHashMap<>();
@@ -115,9 +116,9 @@ public class ConfigManager {
             }
         }
 
-        FileConfiguration defaults = bundledMessages("messages/" + DEFAULT_LANGUAGE + ".yml");
-        if (defaults != null) {
-            loaded.setDefaults(defaults);
+        messageDefaults = bundledMessages("messages/" + DEFAULT_LANGUAGE + ".yml");
+        if (messageDefaults != null) {
+            loaded.setDefaults(messageDefaults);
         }
         return loaded;
     }
@@ -216,11 +217,11 @@ public class ConfigManager {
         if (id == null) {
             return id;
         }
-        ConfigurationSection section = messages.getConfigurationSection("attribute-names");
-        if (section == null) {
-            return id;
+        Object name = nameFrom(messages, "attribute-names", id);
+        if (name == null && messageDefaults != null) {
+            // 旧版语言文件可能缺少整个段：回退到内置默认语言文件，避免直接显示内部名
+            name = nameFrom(messageDefaults, "attribute-names", id);
         }
-        Object name = section.getValues(false).get(id);
         return name != null ? name.toString() : id;
     }
 
@@ -231,12 +232,20 @@ public class ConfigManager {
         if (id == null) {
             return id;
         }
-        ConfigurationSection section = messages.getConfigurationSection("enchant-names");
-        if (section == null) {
-            return id;
+        Object name = nameFrom(messages, "enchant-names", id);
+        if (name == null && messageDefaults != null) {
+            // 旧版语言文件可能缺少整个段：回退到内置默认语言文件，避免直接显示附魔内部名
+            name = nameFrom(messageDefaults, "enchant-names", id);
         }
-        Object name = section.getValues(false).get(id);
         return name != null ? name.toString() : id;
+    }
+
+    private Object nameFrom(FileConfiguration source, String section, String id) {
+        ConfigurationSection configurationSection = source.getConfigurationSection(section);
+        if (configurationSection == null) {
+            return null;
+        }
+        return configurationSection.getValues(false).get(id);
     }
 
     public SocketLoreTemplate socketLore() {
