@@ -66,10 +66,6 @@ public class ConfigManager {
         if (warnings > 0) {
             plugin.getLogger().warning("共 " + warnings + " 个宝石使用了不受支持的 buffType");
         }
-        if (config.getConfigurationSection("sx-attribute-lore") == null
-                && config.getConfigurationSection("attribute-lore") != null) {
-            plugin.getLogger().info("检测到旧版 attribute-lore 配置段，已自动兼容读取（建议改名为 sx-attribute-lore）");
-        }
         plugin.getLogger().info("当前消息语言: " + language);
     }
 
@@ -330,6 +326,6 @@ public class ConfigManager {
     }
 
     public SxAttributeLoreConfig sxAttributeLore() {
-        return SxAttributeLoreConfig.from(config);
+        return SxAttributeLoreConfig.from(config.getConfigurationSection("sx-attribute-lore"));
     }
 }

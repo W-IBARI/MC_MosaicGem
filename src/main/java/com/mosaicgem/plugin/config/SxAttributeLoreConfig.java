@@ -1,7 +1,6 @@
 package com.mosaicgem.plugin.config;
 
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.Configuration;
 
 import java.util.List;
 
@@ -23,12 +22,7 @@ public record SxAttributeLoreConfig(
     private static final String DEFAULT_NEW_LINE = "&r&f{name}：&e{value}";
     private static final String DEFAULT_BONUS_FORMAT = "&r（+{bonus}）";
 
-    public static SxAttributeLoreConfig from(Configuration config) {
-        // 优先读取新版 sx-attribute-lore 段；旧版 attribute-lore 段自动兼容
-        ConfigurationSection section = config.getConfigurationSection("sx-attribute-lore");
-        if (section == null) {
-            section = config.getConfigurationSection("attribute-lore");
-        }
+    public static SxAttributeLoreConfig from(ConfigurationSection section) {
         if (section == null) {
             return new SxAttributeLoreConfig(true, List.of(), DEFAULT_NEW_LINE, DEFAULT_BONUS_FORMAT);
         }
