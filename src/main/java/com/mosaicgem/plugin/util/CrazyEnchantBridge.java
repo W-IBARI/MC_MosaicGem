@@ -1,8 +1,7 @@
 package com.mosaicgem.plugin.util;
 
-import org.bukkit.Bukkit;
+import com.mosaicgem.plugin.MosaicGemPlugin;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -26,43 +25,70 @@ import java.util.logging.Level;
  *   <li>{@code EnchantmentBookSettings#getEnchantments(ItemStack)} / {@code removeEnchantments(...)}</li>
  * </ul>
  */
-public final class CrazyEnchantBridge {
+public final class CrazyEnchantBridge extends SoftDependencyBridge {
 
     private static final String PLUGIN_NAME = "CrazyEnchantments";
 
-    private static boolean initialized;
-    private static boolean available;
-    private static String failureReason;
+    private Object starter;
+    private Object crazyManager;
+    private Object enchantmentBookSettings;
 
-    private static Object starter;
-    private static Object crazyManager;
-    private static Object enchantmentBookSettings;
+    private Method getStarter;
+    private Method getCrazyManager;
+    private Method getEnchantmentBookSettings;
+    private Method getEnchantmentFromName;
+    private Method addEnchantment;
+    private Method getEnchantments;
+    private Method removeEnchantments;
+    private Method getName;
+    private Method getCustomName;
 
-    private static Method getStarter;
-    private static Method getCrazyManager;
-    private static Method getEnchantmentBookSettings;
-    private static Method getEnchantmentFromName;
-    private static Method addEnchantment;
-    private static Method getEnchantments;
-    private static Method removeEnchantments;
-    private static Method getName;
-    private static Method getCustomName;
-
-    private CrazyEnchantBridge() {
+    public CrazyEnchantBridge(MosaicGemPlugin plugin) {
+        super(plugin);
     }
 
-    /**
-     * CrazyEnchantments 是否已加载且 API 可调用。
-     */
-    public static synchronized boolean isAvailable() {
-        init();
-        return available;
+    @Override
+    protected String pluginName() {
+        return PLUGIN_NAME;
+    }
+
+    @Override
+    protected void setup() throws Throwable {
+        org.bukkit.plugin.Plugin plugin = org.bukkit.Bukkit.getPluginManager().getPlugin(PLUGIN_NAME);
+        ClassLoader loader = plugin.getClass().getClassLoader();
+        Class<?> pluginClass = loader.loadClass("com.badbones69.crazyenchantments.paper.CrazyEnchantments");
+        getStarter = pluginClass.getMethod("getStarter");
+        starter = getStarter.invoke(plugin);
+        if (starter == null) {
+            throw new IllegalStateException("CrazyEnchantments Starter 为 null");
+        }
+
+        getCrazyManager = starter.getClass().getMethod("getCrazyManager");
+        crazyManager = getCrazyManager.invoke(starter);
+        getEnchantmentBookSettings = starter.getClass().getMethod("getEnchantmentBookSettings");
+        enchantmentBookSettings = getEnchantmentBookSettings.invoke(starter);
+        if (crazyManager == null || enchantmentBookSettings == null) {
+            throw new IllegalStateException("CrazyEnchantments 管理器为 null");
+        }
+
+        Class<?> enchantmentClass = loader.loadClass("com.badbones69.crazyenchantments.paper.api.objects.CEnchantment");
+        getEnchantmentFromName = findMethod(crazyManager.getClass(), "getEnchantmentFromName", String.class);
+        addEnchantment = findMethod(crazyManager.getClass(), "addEnchantment", ItemStack.class, enchantmentClass, int.class);
+        getEnchantments = findMethod(enchantmentBookSettings.getClass(), "getEnchantments", ItemStack.class);
+        removeEnchantments = findMethod(enchantmentBookSettings.getClass(), "removeEnchantments", ItemStack.class, List.class);
+        getName = findMethod(enchantmentClass, "getName");
+        getCustomName = findMethod(enchantmentClass, "getCustomName");
+    }
+
+    @Override
+    protected void onAvailable() {
+        plugin().getLogger().info("已桥接 CrazyEnchantments，可镶嵌其自定义附魔");
     }
 
     /**
      * 获取自定义附魔的显示名（优先 Crazy 配置的 CustomName，找不到则返回原始名）。
      */
-    public static synchronized String getDisplayName(String name) {
+    public String getDisplayName(String name) {
         if (!isAvailable() || name == null) {
             return name;
         }
@@ -83,7 +109,7 @@ public final class CrazyEnchantBridge {
      * 读取物品上的全部 CrazyEnchantments 附魔：附魔名 -> 等级。
      */
     @SuppressWarnings("unchecked")
-    public static synchronized Map<String, Integer> getEnchantments(ItemStack item) {
+    public Map<String, Integer> getEnchantments(ItemStack item) {
         Map<String, Integer> result = new LinkedHashMap<>();
         if (!isAvailable() || item == null || item.getType().isAir()) {
             return result;
@@ -113,7 +139,7 @@ public final class CrazyEnchantBridge {
     /**
      * 把指定自定义附魔设置为指定等级（已存在则覆盖，不存在则新建）。
      */
-    public static synchronized void setEnchantment(ItemStack item, String name, int level) {
+    public void setEnchantment(ItemStack item, String name, int level) {
         if (!isAvailable() || item == null || name == null || level <= 0) {
             return;
         }
@@ -132,7 +158,7 @@ public final class CrazyEnchantBridge {
      * 从物品上移除指定自定义附魔（不存在则忽略）。
      */
     @SuppressWarnings("unchecked")
-    public static synchronized void removeEnchantments(ItemStack item, Collection<String> names) {
+    public void removeEnchantments(ItemStack item, Collection<String> names) {
         if (!isAvailable() || item == null || names == null || names.isEmpty()) {
             return;
         }
@@ -153,8 +179,8 @@ public final class CrazyEnchantBridge {
         }
     }
 
-    private static Object findEnchantment(String name) {
-        if (!available || name == null) {
+    private Object findEnchantment(String name) {
+        if (!isAvailable() || name == null) {
             return null;
         }
         try {
@@ -165,57 +191,16 @@ public final class CrazyEnchantBridge {
         }
     }
 
-    private static synchronized void init() {
-        if (initialized) {
-            return;
-        }
-        initialized = true;
-        try {
-            Plugin plugin = Bukkit.getPluginManager().getPlugin(PLUGIN_NAME);
-            if (plugin == null) {
-                return;
-            }
-            Class<?> pluginClass = plugin.getClass();
-            getStarter = findMethod(pluginClass, "getStarter");
-            starter = getStarter.invoke(plugin);
-            if (starter == null) {
-                return;
-            }
-
-            getCrazyManager = findMethod(starter.getClass(), "getCrazyManager");
-            crazyManager = getCrazyManager.invoke(starter);
-            getEnchantmentBookSettings = findMethod(starter.getClass(), "getEnchantmentBookSettings");
-            enchantmentBookSettings = getEnchantmentBookSettings.invoke(starter);
-            if (crazyManager == null || enchantmentBookSettings == null) {
-                return;
-            }
-
-            Class<?> enchantmentClass = Class.forName("com.badbones69.crazyenchantments.paper.api.objects.CEnchantment");
-            getEnchantmentFromName = findMethod(crazyManager.getClass(), "getEnchantmentFromName", String.class);
-            addEnchantment = findMethod(crazyManager.getClass(), "addEnchantment", ItemStack.class, enchantmentClass, int.class);
-            getEnchantments = findMethod(enchantmentBookSettings.getClass(), "getEnchantments", ItemStack.class);
-            removeEnchantments = findMethod(enchantmentBookSettings.getClass(), "removeEnchantments", ItemStack.class, List.class);
-            getName = findMethod(enchantmentClass, "getName");
-            getCustomName = findMethod(enchantmentClass, "getCustomName");
-
-            available = true;
-            Bukkit.getLogger().info("[MosaicGem] 已桥接 CrazyEnchantments，可镶嵌其自定义附魔");
-        } catch (Throwable e) {
-            failureReason = e.getMessage();
-            Bukkit.getLogger().log(Level.WARNING, "[MosaicGem] CrazyEnchantments 桥接初始化失败（不影响原版附魔功能）: " + e, e);
-        }
-    }
-
     private static Method findMethod(Class<?> type, String name, Class<?>... parameterTypes) throws NoSuchMethodException {
         Method method = type.getMethod(name, parameterTypes);
         method.setAccessible(true);
         return method;
     }
 
-    private static void logFailure(String message, ReflectiveOperationException e) {
+    private void logFailure(String message, ReflectiveOperationException e) {
         Throwable cause = e instanceof InvocationTargetException invocation && invocation.getTargetException() != null
                 ? invocation.getTargetException()
                 : e;
-        Bukkit.getLogger().log(Level.WARNING, "[MosaicGem] " + message + "（" + cause + "）", cause);
+        plugin().getLogger().log(Level.WARNING, "[MosaicGem] " + message + "（" + cause + "）", cause);
     }
 }

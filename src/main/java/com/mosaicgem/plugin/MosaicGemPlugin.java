@@ -2,13 +2,16 @@ package com.mosaicgem.plugin;
 
 import com.mosaicgem.plugin.command.MosaicGemCommand;
 import com.mosaicgem.plugin.config.ConfigManager;
-import com.mosaicgem.plugin.listener.InteractionListener;
+import com.mosaicgem.plugin.listener.AnvilInteractionListener;
+import com.mosaicgem.plugin.listener.CraftingInteractionListener;
+import com.mosaicgem.plugin.listener.DragInteractionListener;
 import com.mosaicgem.plugin.listener.MythicCrucibleListener;
 import com.mosaicgem.plugin.listener.MythicSkillListener;
 import com.mosaicgem.plugin.service.GemService;
 import com.mosaicgem.plugin.util.ItemFactory;
 import com.mosaicgem.plugin.util.MythicCrucibleBridge;
 import com.mosaicgem.plugin.util.MythicMobsBridge;
+import com.mosaicgem.plugin.util.MythicSkillExecutor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -34,7 +37,6 @@ public final class MosaicGemPlugin extends JavaPlugin {
     private ConfigManager configManager;
     private ItemFactory itemFactory;
     private GemService gemService;
-    private InteractionListener interactionListener;
     private MythicMobsBridge mythicMobsBridge;
     private MythicCrucibleBridge mythicCrucibleBridge;
     private MosaicGemCommand command;
@@ -57,10 +59,13 @@ public final class MosaicGemPlugin extends JavaPlugin {
 
         itemFactory = new ItemFactory(this, configManager);
         gemService = new GemService(this, configManager, itemFactory);
-        interactionListener = new InteractionListener(configManager, itemFactory, gemService);
-        Bukkit.getPluginManager().registerEvents(interactionListener, this);
+        Bukkit.getPluginManager().registerEvents(new AnvilInteractionListener(configManager, itemFactory, gemService), this);
+        Bukkit.getPluginManager().registerEvents(new CraftingInteractionListener(configManager, itemFactory, gemService), this);
+        Bukkit.getPluginManager().registerEvents(new DragInteractionListener(configManager, itemFactory, gemService), this);
 
         mythicMobsBridge = new MythicMobsBridge(this, configManager, itemFactory);
+        // MythicMobs 桥必须先初始化：注册自定义掉落并重载掉落/怪物配置（无论是否安装 Crucible）
+        boolean mythicMobsAvailable = mythicMobsBridge.isAvailable();
         mythicCrucibleBridge = new MythicCrucibleBridge(this, configManager, itemFactory, mythicMobsBridge);
         if (mythicCrucibleBridge.isAvailable()) {
             // 使用 MythicCrucible 的物品技能触发管线（SWING/USE/RIGHTCLICK 等），不再自建触发监听
@@ -68,9 +73,10 @@ public final class MosaicGemPlugin extends JavaPlugin {
             for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                 mythicCrucibleBridge.registerPlayer(player);
             }
-        } else if (mythicMobsBridge.isAvailable()) {
+        } else if (mythicMobsAvailable) {
             // 未安装 MythicCrucible 时回退到内置攻击触发
-            Bukkit.getPluginManager().registerEvents(new MythicSkillListener(configManager, itemFactory, mythicMobsBridge), this);
+            MythicSkillExecutor skillExecutor = new MythicSkillExecutor(configManager, itemFactory, mythicMobsBridge);
+            Bukkit.getPluginManager().registerEvents(new MythicSkillListener(skillExecutor), this);
         }
 
         command = new MosaicGemCommand(this, configManager, itemFactory);

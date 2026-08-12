@@ -33,13 +33,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * 物品工厂：生成工具物品、读写物品组件（custom data）中的镶嵌数据。
@@ -75,6 +73,7 @@ public class ItemFactory {
 
     private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
+    private final CrazyEnchantBridge crazyEnchantBridge;
 
     private final NamespacedKey keyItem;
     private final NamespacedKey keyId;
@@ -92,6 +91,7 @@ public class ItemFactory {
     public ItemFactory(MosaicGemPlugin plugin, ConfigManager configs) {
         this.plugin = plugin;
         this.configs = configs;
+        this.crazyEnchantBridge = new CrazyEnchantBridge(plugin);
         this.keyItem = key("item");
         this.keyId = key("id");
         this.keyValues = key("values");
@@ -104,6 +104,14 @@ public class ItemFactory {
         this.keyUuid = key("uuid");
         this.keyCount = key("count");
         this.keySources = key("sources");
+    }
+
+    ConfigManager configs() {
+        return configs;
+    }
+
+    CrazyEnchantBridge crazyEnchants() {
+        return crazyEnchantBridge;
     }
 
     // ------------------------------------------------------------------
@@ -513,100 +521,24 @@ public class ItemFactory {
      * 生成宝石的数值描述（用于镶嵌信息 lore 的 {values} 占位符）。
      */
     public String resolveGemValues(SocketedGem gem) {
+        if (gem == null) {
+            return "";
+        }
         GemDefinition definition = configs.getGem(gem.id());
         if (definition == null) {
             return gem.id();
         }
-        if (BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())) {
-            return definition.getAttribute().stream()
-                    .map(ItemFactory::parseVanillaAttribute)
-                    .filter(Objects::nonNull)
-                    .map(attr -> configs.attributeName(attr.id()) + "：" + resolve(attr.value(), gem.values()))
-                    .collect(Collectors.joining("、"));
-        }
-        if (BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
-            return definition.getAttribute().stream()
-                    .map(ItemFactory::parseVanillaAttribute)
-                    .filter(Objects::nonNull)
-                    .map(attr -> enchantDisplay(normalizeEnchantId(attr.id()), resolve(attr.value(), gem.values())))
-                    .collect(Collectors.joining("、"));
-        }
-        if (BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
-            return definition.getAttribute().stream()
-                    .map(line -> mmSkillDisplay(line, gem.values()))
-                    .filter(line -> !line.isEmpty())
-                    .collect(Collectors.joining("、"));
-        }
-        return definition.getAttribute().stream()
-                .map(line -> resolve(line, gem.values()))
-                .map(ItemFactory::stripLoreText)
-                .filter(line -> !line.isEmpty())
-                .collect(Collectors.joining("、"));
+        return BuffTypeRegistry.get().values(gem, this);
     }
 
     /**
      * 生成宝石的数值行列表（每条属性一行），用于 {value_lines} 占位符。
      */
     public List<String> resolveGemValueList(SocketedGem gem) {
-        GemDefinition definition = configs.getGem(gem.id());
-        if (definition == null) {
+        if (gem == null || configs.getGem(gem.id()) == null) {
             return List.of();
         }
-        List<String> result = new ArrayList<>();
-        if (BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())) {
-            for (String line : definition.getAttribute()) {
-                VanillaAttribute attribute = parseVanillaAttribute(line);
-                if (attribute != null) {
-                    result.add(configs.attributeName(attribute.id()) + "：" + resolve(attribute.value(), gem.values()));
-                }
-            }
-            return result;
-        }
-        if (BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
-            for (String line : definition.getAttribute()) {
-                VanillaAttribute attribute = parseVanillaAttribute(line);
-                if (attribute != null) {
-                    result.add(enchantDisplay(normalizeEnchantId(attribute.id()), resolve(attribute.value(), gem.values())));
-                }
-            }
-            return result;
-        }
-        if (BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
-            for (String line : definition.getAttribute()) {
-                String skill = mmSkillDisplay(line, gem.values());
-                if (!skill.isEmpty()) {
-                    result.add(skill);
-                }
-            }
-            return result;
-        }
-        for (String line : definition.getAttribute()) {
-            String stripped = stripLoreText(resolve(line, gem.values()));
-            if (!stripped.isEmpty()) {
-                result.add(stripped);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * 生成 MM 技能宝石的显示名：去掉 MythicCrucible 风格的 @触发器 与 skill: 前缀。
-     */
-    private String mmSkillDisplay(String line, Map<String, String> values) {
-        String resolved = resolve(line, values);
-        if (resolved == null) {
-            return "";
-        }
-        String text = stripLoreText(resolved);
-        int at = text.lastIndexOf('@');
-        if (at >= 0) {
-            text = text.substring(0, at).trim();
-        }
-        String lower = text.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("skill:")) {
-            text = text.substring("skill:".length()).trim();
-        }
-        return text;
+        return BuffTypeRegistry.get().valueLines(gem, this);
     }
 
     // ------------------------------------------------------------------
@@ -914,7 +846,7 @@ public class ItemFactory {
             }
             result.put("minecraft:" + entry.getKey().getKey().getKey(), entry.getValue());
         }
-        for (Map.Entry<String, Integer> entry : CrazyEnchantBridge.getEnchantments(item).entrySet()) {
+        for (Map.Entry<String, Integer> entry : crazyEnchantBridge.getEnchantments(item).entrySet()) {
             result.put(CRAZY_ENCHANT_PREFIX + entry.getKey(), entry.getValue());
         }
         return result;
@@ -923,8 +855,8 @@ public class ItemFactory {
     private void removeManagedEnchantment(ItemStack item, String id) {
         if (isCrazyEnchantId(id)) {
             String name = crazyNameOf(id);
-            if (CrazyEnchantBridge.getEnchantments(item).containsKey(name)) {
-                CrazyEnchantBridge.removeEnchantments(item, List.of(name));
+            if (crazyEnchantBridge.getEnchantments(item).containsKey(name)) {
+                crazyEnchantBridge.removeEnchantments(item, List.of(name));
             }
             return;
         }
@@ -936,11 +868,11 @@ public class ItemFactory {
 
     private void applyManagedEnchantment(ItemStack item, String id, int level) {
         if (isCrazyEnchantId(id)) {
-            if (!CrazyEnchantBridge.isAvailable()) {
+            if (!crazyEnchantBridge.isAvailable()) {
                 plugin.getLogger().warning("服务器未安装/启用 CrazyEnchantments，无法镶嵌自定义附魔: " + id);
                 return;
             }
-            CrazyEnchantBridge.setEnchantment(item, crazyNameOf(id), level);
+            crazyEnchantBridge.setEnchantment(item, crazyNameOf(id), level);
             return;
         }
         Enchantment enchantment = vanillaEnchantment(id);
@@ -994,25 +926,6 @@ public class ItemFactory {
     }
 
     /**
-     * 生成附魔宝石的数值描述：附魔名 +N（如“锋利 +3”）。
-     */
-    private String enchantDisplay(String id, String resolved) {
-        String name = configs.enchantName(id);
-        if (name.equals(id) && isCrazyEnchantId(id)) {
-            String custom = CrazyEnchantBridge.getDisplayName(crazyNameOf(id));
-            if (custom != null && !custom.equalsIgnoreCase(crazyNameOf(id))) {
-                name = custom;
-            }
-        }
-        try {
-            int level = (int) Math.round(Double.parseDouble(resolved.trim()));
-            return name + " " + (level >= 0 ? "+" : "") + level;
-        } catch (NumberFormatException e) {
-            return name + " " + resolved;
-        }
-    }
-
-    /**
      * 规范化附魔 id：裸 id 补 minecraft: 前缀；crazy: 别名统一为 ce:。
      */
     static String normalizeEnchantId(String id) {
@@ -1032,12 +945,12 @@ public class ItemFactory {
                 : "minecraft:" + trimmed.toLowerCase(Locale.ROOT);
     }
 
-    private static boolean isCrazyEnchantId(String id) {
+    static boolean isCrazyEnchantId(String id) {
         return id != null && (id.toLowerCase(Locale.ROOT).startsWith(CRAZY_ENCHANT_PREFIX)
                 || id.toLowerCase(Locale.ROOT).startsWith(CRAZY_ENCHANT_PREFIX_ALT));
     }
 
-    private static String crazyNameOf(String id) {
+    static String crazyNameOf(String id) {
         int index = id.indexOf(':');
         return index >= 0 && index + 1 < id.length() ? id.substring(index + 1) : id;
     }
@@ -1064,7 +977,7 @@ public class ItemFactory {
     ) {
     }
 
-    private static VanillaAttribute parseVanillaAttribute(String line) {
+    static VanillaAttribute parseVanillaAttribute(String line) {
         if (line == null || line.isBlank()) {
             return null;
         }
@@ -1080,7 +993,7 @@ public class ItemFactory {
         return new VanillaAttribute(id, value);
     }
 
-    private record VanillaAttribute(String id, String value) {
+    record VanillaAttribute(String id, String value) {
     }
 
     /**

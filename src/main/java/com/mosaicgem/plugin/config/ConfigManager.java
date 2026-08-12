@@ -1,7 +1,7 @@
 package com.mosaicgem.plugin.config;
 
 import com.mosaicgem.plugin.MosaicGemPlugin;
-import com.mosaicgem.plugin.util.ItemFactory;
+import com.mosaicgem.plugin.util.BuffTypeRegistry;
 import com.mosaicgem.plugin.model.ToolType;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -57,11 +57,9 @@ public class ConfigManager {
 
         int warnings = 0;
         for (GemDefinition gem : gems.values()) {
-            if (!ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(gem.getBuffType())
-                    && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(gem.getBuffType())
-                    && !ItemFactory.BUFF_TYPE_ENCHANT.equalsIgnoreCase(gem.getBuffType())
-                    && !ItemFactory.BUFF_TYPE_MM_SKILL.equalsIgnoreCase(gem.getBuffType())) {
-                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType() + "（当前仅支持 sx_attribute / vanilla_attribute / enchant / mythicmobs_skill，属性将不会注入）");
+            if (!BuffTypeRegistry.get().isKnown(gem.getBuffType())) {
+                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType()
+                        + "（当前仅支持 " + BuffTypeRegistry.get().supportedTypes() + "，属性将不会注入）");
                 warnings++;
             }
         }

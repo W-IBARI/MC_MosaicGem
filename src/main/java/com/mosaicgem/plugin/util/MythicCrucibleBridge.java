@@ -2,13 +2,9 @@ package com.mosaicgem.plugin.util;
 
 import com.mosaicgem.plugin.MosaicGemPlugin;
 import com.mosaicgem.plugin.config.ConfigManager;
-import com.mosaicgem.plugin.config.GemDefinition;
-import com.mosaicgem.plugin.model.SocketData;
-import com.mosaicgem.plugin.model.SocketedGem;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.InvocationHandler;
@@ -16,7 +12,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -32,18 +27,15 @@ import java.util.logging.Level;
  *   <li>技能冷却、条件、目标选择仍由 MythicMobs 自身规则处理</li>
  * </ul>
  */
-public final class MythicCrucibleBridge {
+public final class MythicCrucibleBridge extends SoftDependencyBridge {
 
     private static final String PLUGIN_NAME = "MythicCrucible";
     private static final String SKILL_HOLDER_CLASS = "io.lumine.mythiccrucible.items.SkillHolder";
 
-    private final MosaicGemPlugin plugin;
     private final ConfigManager configs;
     private final ItemFactory factory;
     private final MythicMobsBridge mythicMobs;
-
-    private boolean available;
-    private boolean initialized;
+    private final MythicSkillExecutor skillExecutor;
 
     private Class<?> skillHolderClass;
     private Method getProfileManager;
@@ -56,16 +48,49 @@ public final class MythicCrucibleBridge {
     private final Map<Player, Object> holders = new LinkedHashMap<>();
 
     public MythicCrucibleBridge(MosaicGemPlugin plugin, ConfigManager configs, ItemFactory factory, MythicMobsBridge mythicMobs) {
-        this.plugin = plugin;
+        super(plugin);
         this.configs = configs;
         this.factory = factory;
         this.mythicMobs = mythicMobs;
-        init();
+        this.skillExecutor = new MythicSkillExecutor(configs, factory, mythicMobs);
     }
 
-    public synchronized boolean isAvailable() {
-        init();
-        return available;
+    @Override
+    protected String pluginName() {
+        return PLUGIN_NAME;
+    }
+
+    @Override
+    protected void setup() throws Throwable {
+        Plugin crucible = Bukkit.getPluginManager().getPlugin(PLUGIN_NAME);
+        skillHolderClass = Class.forName(SKILL_HOLDER_CLASS);
+
+        Class<?> mainClass = Class.forName("io.lumine.mythiccrucible.MythicCrucible");
+        getProfileManager = mainClass.getMethod("getProfileManager");
+        Object profileManager = getProfileManager.invoke(crucible);
+        if (profileManager == null) {
+            throw new IllegalStateException("MythicCrucible ProfileManager 为 null");
+        }
+        getPlayerProfile = profileManager.getClass().getMethod("getPlayerProfile", Player.class);
+
+        Class<?> profileClass = Class.forName("io.lumine.mythiccrucible.profiles.Profile");
+        registerExternalHolder = profileClass.getMethod("registerExternalHolder", skillHolderClass);
+        unregisterExternalHolder = profileClass.getMethod("unregisterExternalHolder", skillHolderClass);
+
+        Class<?> adapterClass = Class.forName("io.lumine.mythic.bukkit.BukkitAdapter");
+        adaptEntity = adapterClass.getMethod("adapt", Class.forName("io.lumine.mythic.api.adapters.AbstractEntity"));
+
+        Class<?> triggerClass = Class.forName("io.lumine.mythic.api.skills.SkillTrigger");
+        try {
+            triggerName = triggerClass.getMethod("name");
+        } catch (NoSuchMethodException ignored) {
+            triggerName = null;
+        }
+    }
+
+    @Override
+    protected void onAvailable() {
+        plugin().getLogger().info("已桥接 MythicCrucible：mm 技能宝石改用 Crucible 物品技能触发（SWING/USE/RIGHTCLICK 等）");
     }
 
     /**
@@ -84,7 +109,7 @@ public final class MythicCrucibleBridge {
             registerExternalHolder.invoke(profile, holder);
             holders.put(player, holder);
         } catch (ReflectiveOperationException e) {
-            plugin.getLogger().log(Level.WARNING, "注册 MythicCrucible 技能持有者失败: " + player.getName(), e);
+            plugin().getLogger().log(Level.WARNING, "注册 MythicCrucible 技能持有者失败: " + player.getName(), e);
         }
     }
 
@@ -105,53 +130,7 @@ public final class MythicCrucibleBridge {
                 unregisterExternalHolder.invoke(profile, holder);
             }
         } catch (ReflectiveOperationException e) {
-            plugin.getLogger().log(Level.WARNING, "移除 MythicCrucible 技能持有者失败: " + player.getName(), e);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 内部实现
-    // ------------------------------------------------------------------
-
-    private synchronized void init() {
-        if (initialized) {
-            return;
-        }
-        initialized = true;
-        try {
-            Plugin crucible = Bukkit.getPluginManager().getPlugin(PLUGIN_NAME);
-            if (crucible == null) {
-                return;
-            }
-            skillHolderClass = Class.forName(SKILL_HOLDER_CLASS);
-
-            Class<?> mainClass = Class.forName("io.lumine.mythiccrucible.MythicCrucible");
-            getProfileManager = mainClass.getMethod("getProfileManager");
-            Object profileManager = getProfileManager.invoke(crucible);
-            if (profileManager == null) {
-                return;
-            }
-            getPlayerProfile = profileManager.getClass().getMethod("getPlayerProfile", Player.class);
-
-            Class<?> profileClass = Class.forName("io.lumine.mythiccrucible.profiles.Profile");
-            registerExternalHolder = profileClass.getMethod("registerExternalHolder", skillHolderClass);
-            unregisterExternalHolder = profileClass.getMethod("unregisterExternalHolder", skillHolderClass);
-
-            Class<?> adapterClass = Class.forName("io.lumine.mythic.bukkit.BukkitAdapter");
-            adaptEntity = adapterClass.getMethod("adapt", Class.forName("io.lumine.mythic.api.adapters.AbstractEntity"));
-
-            Class<?> triggerClass = Class.forName("io.lumine.mythic.api.skills.SkillTrigger");
-            try {
-                triggerName = triggerClass.getMethod("name");
-            } catch (NoSuchMethodException ignored) {
-                triggerName = null;
-            }
-
-            available = true;
-            plugin.getLogger().info("已桥接 MythicCrucible " + crucible.getDescription().getVersion()
-                    + "：mm 技能宝石改用 Crucible 物品技能触发（SWING/USE/RIGHTCLICK 等）");
-        } catch (Throwable e) {
-            plugin.getLogger().log(Level.WARNING, "MythicCrucible 桥接初始化失败（将回退到内置攻击触发）: " + e, e);
+            plugin().getLogger().log(Level.WARNING, "移除 MythicCrucible 技能持有者失败: " + player.getName(), e);
         }
     }
 
@@ -208,43 +187,15 @@ public final class MythicCrucibleBridge {
      * Crucible 触发某个技能触发器时执行：检查主手装备上的 mm 技能宝石并施放匹配的技能。
      */
     private boolean execute(Player player, Object trigger, Object triggerEntity) {
-        if (player == null || !player.isOnline()) {
-            return false;
-        }
         String currentTrigger = triggerName(trigger);
         if (currentTrigger == null) {
             return false;
         }
-        ItemStack item = player.getInventory().getItemInMainHand();
-        if (item == null || item.getType().isAir()) {
-            return false;
-        }
-        SocketData data = factory.readSocketData(item);
-        if (data.gems().isEmpty()) {
-            return false;
-        }
-
         Entity target = toBukkitEntity(triggerEntity);
         if (target == null) {
             target = player;
         }
-        boolean cast = false;
-        for (SocketedGem gem : data.gems()) {
-            GemDefinition definition = configs.getGem(gem.id());
-            if (definition == null || !ItemFactory.BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
-                continue;
-            }
-            for (String line : definition.getAttribute()) {
-                SkillEntry entry = parseSkillLine(line, gem);
-                if (entry == null || !currentTrigger.equals(entry.trigger())) {
-                    continue;
-                }
-                if (mythicMobs.castSkill(player, entry.name(), target)) {
-                    cast = true;
-                }
-            }
-        }
-        return cast;
+        return skillExecutor.cast(player, currentTrigger, target);
     }
 
     private String triggerName(Object trigger) {
@@ -255,13 +206,13 @@ public final class MythicCrucibleBridge {
             if (triggerName != null) {
                 Object name = triggerName.invoke(trigger);
                 if (name != null) {
-                    return normalizeTrigger(String.valueOf(name));
+                    return MythicSkillLine.normalizeTrigger(String.valueOf(name));
                 }
             }
         } catch (ReflectiveOperationException ignored) {
             // fall through
         }
-        return normalizeTrigger(String.valueOf(trigger));
+        return MythicSkillLine.normalizeTrigger(String.valueOf(trigger));
     }
 
     private Entity toBukkitEntity(Object abstractEntity) {
@@ -276,47 +227,4 @@ public final class MythicCrucibleBridge {
         }
     }
 
-    /**
-     * 解析宝石配置中的技能行：支持 MythicCrucible 风格 {@code 技能名 @触发器}、
-     * {@code skill:技能名 @触发器} 或纯技能名（默认 @onSwing）。
-     */
-    private SkillEntry parseSkillLine(String line, SocketedGem gem) {
-        String resolved = factory.resolve(line, gem.values());
-        if (resolved == null || resolved.isBlank()) {
-            return null;
-        }
-        String text = ItemFactory.stripLoreText(resolved);
-        String trigger = "SWING";
-        int at = text.lastIndexOf('@');
-        if (at >= 0 && at + 1 < text.length()) {
-            trigger = normalizeTrigger(text.substring(at + 1).trim());
-            text = text.substring(0, at).trim();
-        }
-        String lower = text.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("skill:")) {
-            text = text.substring("skill:".length()).trim();
-        }
-        if (text.isEmpty()) {
-            return null;
-        }
-        return new SkillEntry(text, trigger);
-    }
-
-    private static String normalizeTrigger(String raw) {
-        if (raw == null) {
-            return "SWING";
-        }
-        String value = raw.trim();
-        if (value.isEmpty()) {
-            return "SWING";
-        }
-        String lower = value.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("on")) {
-            value = value.substring(2);
-        }
-        return value.toUpperCase(Locale.ROOT);
-    }
-
-    private record SkillEntry(String name, String trigger) {
-    }
 }
