@@ -1,11 +1,11 @@
 # MosaicGem
 
-Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性支持 **SX-Attribute（lore 合并）**、**原版属性（AttributeModifier）** 与 **附魔（原版附魔 / CrazyEnchantments 自定义附魔）**，适配 **Folia 26.2 / Java Edition 26.2**。
+Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、宝石拆卸**，属性支持 **SX-Attribute（lore 合并）**、**原版属性（AttributeModifier）**、**附魔（原版附魔 / CrazyEnchantments 自定义附魔）** 与 **MythicMobs 技能/掉落**，适配 **Folia 26.2 / Java Edition 26.2**。
 
 ## 功能特性
 
 - **装备打孔**：使用打孔器为装备添加孔位，成功率与双维度孔数上限可配置
-- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`enchant` 宝石直接附加/叠加到装备的附魔
+- **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石在攻击时按 MythicMobs 规则发动技能
 - **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
@@ -17,11 +17,11 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 - 服务端：Folia 26.2（Java Edition 26.2）
 - Java：JDK 25+
-- 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）
+- 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）；[MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs)（`mythicmobs_skill` 宝石与怪物掉落宝石需要）
 
-> 说明：原版 SX-Attribute 仓库尚未适配 26.2，因此 MosaicGem 推荐使用 [W-IBARI/SX-Attribute-Folia-fixed](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) 提供的 26.2 优化构建版（已去除 MythicMobs 等非必要前置）。
+> 说明：原版 SX-Attribute 仓库尚未适配 26.2，因此 MosaicGem 推荐使用 [W-IBARI/SX-Attribute-Folia-fixed](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) 提供的 26.2 优化构建版。
 >
-> MosaicGem 将 SX-Attribute 声明为软依赖（softdepend）：未安装时插件本身可正常运行，仅 `sx_attribute` 类型的宝石属性不会生效；`vanilla_attribute` 与 `enchant` 宝石不受影响，可正常镶嵌。
+> MythicMobs 同样为软依赖：未安装时 `mythicmobs_skill` 宝石与自定义掉落不可用，其余功能不受影响。
 
 ## 安装
 
@@ -30,8 +30,6 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 3. 如需 `sx_attribute` 宝石属性生效，同时放入 `SX-Item` 与 `SX-Attribute`（26.2 优化构建版）的 jar
 4. 启动服务端，插件会自动生成 `config.yml`、`messages/zh_cn.yml`、`messages/en_us.yml`、`items/gems.yml`、`items/punchers.yml`、`items/removers.yml`
 5. 按需修改配置后执行 `/mosaicgem reload`
-
-> 配置热重载时若发现某个 yml 缺失，会自动从插件内置默认版本补齐，不会覆盖已有文件。
 
 ## 玩法机制
 
@@ -50,7 +48,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 - 目标装备必须已有孔位，且已镶嵌数量未达到孔数上限
 - 宝石生成时按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
 - 同一种宝石可按 `repetitions` 限制重复镶嵌次数（不填为无上限）
-- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）与 `enchant`（附加/叠加附魔），其他类型会拦截镶嵌并提示
+- `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（攻击时发动 MythicMobs 技能），其他类型会拦截镶嵌并提示
 - `sx_attribute` 属性面板合并规则：
   - 物品原有属性行与所有宝石同类数值求和，显示为 `总值（+加成）`，如 `攻击力：33.90（+20）`
   - 宝石独有的属性自动追加新属性行
@@ -65,6 +63,24 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
   - 多颗附魔宝石的同类附魔等级求和后一次性写入
   - 原生附魔等级会存入物品数据，宝石全部取下后自动还原为原始等级
   - 原版附魔 id 使用 `minecraft:` 前缀（如 `minecraft:sharpness`）；已安装 CrazyEnchantments 时还可使用 `ce:` 前缀（如 `ce:Wither`）镶嵌其自定义附魔
+- `mythicmobs_skill` 技能宝石规则：
+  - 配置条中的每一行声明一个 MythicMobs 技能名（用户在 MythicMobs 中自行配置的技能）
+  - 镶嵌后，玩家使用该装备以近战攻击命中目标时，自动按 MythicMobs 规则施放技能（冷却、条件、目标选择等由 MythicMobs 处理）
+  - 镶嵌信息中宝石的属性行直接显示技能名（如 `TestSkill`）
+
+### MythicMobs 怪物掉落宝石
+
+安装 MythicMobs 后，可在怪物的 `Drops` 中使用自定义掉落类型 `mosaicgem` 掉落插件宝石：
+
+```yaml
+Drops:
+- mosaicgem:附魔测试宝石 1 0.5
+- mosaicgem{id=SA测试宝石} 1 0.2
+```
+
+- `mosaicgem` 后的参数为宝石内部名（与 `/mosaicgem give` 使用的 id 一致），也可用 `{id=宝石名}` 或 `{gem=宝石名}` 指定
+- 掉落数量与概率沿用 MythicMobs 的掉落语法（数量、概率列）
+- 掉落的宝石会按宝石配置随机生成数值
 
 ### 拆卸
 
@@ -76,8 +92,6 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 ### 工具消耗与堆叠
 
 - 一次行为只消耗 1 个工具，剩余工具继续留在光标/原槽位，可连续操作
-- 光标持有工具时点击同类工具（合并/换位）交给原版处理，不拦截
-- 创造模式与生存模式操作逻辑一致（目标修改、工具消耗、剩余保留）
 
 ### 交互方式
 
@@ -100,8 +114,6 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 | `/mosaicgem selftest` | 无玩家环境自检：配置解析、物品生成、数据读写、属性合并 | `mosaicgem.debug`（默认 OP） |
 
 指令别名：`/mg`、`/mgem`。
-
-> 上表权限均为默认值；每个指令实际要求哪些权限节点由 `permissions.yml` 决定（见下文），不再硬编码。
 
 ## 配置文件
 
@@ -296,12 +308,29 @@ SA测试宝石:
   attribute:                         # 仅 enchant：格式为「附魔id：等级」
     - 'minecraft:sharpness: ${random_value}'
     - 'minecraft:unbreaking: 1'
+
+MM技能测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&eMM技能测试宝石"
+  lore:
+    - '&a▪ 技能: TestSkill'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  buffType: 'mythicmobs_skill'       # MythicMobs 技能：攻击时按 MM 规则发动技能
+  attribute:                         # 仅 mythicmobs_skill：每一行是一个 MM 技能名
+    - 'TestSkill'
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
 - `sx_attribute`：属性行写进装备 lore，参与 `sx-attribute-lore` 面板合并（同属性求和、显示总值与加成）
 - `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore
 - `enchant`：属性行直接附加/叠加到装备附魔（已存在则原等级 + 宝石等级，不存在则新建；多宝石同类附魔求和；原生附魔等级存物品数据，取下自动还原）
+- `mythicmobs_skill`：属性行是 MythicMobs 技能名，镶嵌后玩家用该装备近战攻击时自动施放（冷却/条件/目标由 MythicMobs 处理）；镶嵌信息直接显示技能名
 - 原版属性 id 的显示名在语言文件 `attribute-names` 段配置；附魔 id 的显示名在 `enchant-names` 段配置，未配置时显示原始 id（CrazyEnchantments 附魔回退显示其 CustomName）
 - CrazyEnchantments 自定义附魔格式：`ce:附魔名: 等级`（如 `ce:Wither: 2`），需要服务器已安装 CrazyEnchantments；原版附魔格式：`minecraft:sharpness: 等级`，裸 id（如 `sharpness`）会自动补 `minecraft:` 前缀
 - `targetMaterial` 与 `targetType` 同时配置时需**同时满足**才可操作
@@ -374,9 +403,13 @@ SA测试宝石:
 
 确认服务器已安装并启用 [CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)，且 `ce:` 后面的附魔名与 CrazyEnchantments 配置中的附魔名完全一致（如 `ce:Wither`）；MosaicGem 通过运行时桥接调用其 API，无需额外依赖。
 
-**Q：修改配置后需要重启吗？**
+**Q：MythicMobs 怪物不掉插件宝石？**
 
-不需要，执行 `/mosaicgem reload` 即可，全部 yml 会重载，缺失文件会自动补齐。
+确认 MythicMobs 已安装并先于 MosaicGem 加载（插件声明了软依赖）；在怪物或掉落表中使用 `mosaicgem:宝石内部名` 作为掉落，并执行 `/mm reload`（或重启服务器）让掉落重新解析。MosaicGem 启动时会自动触发一次掉落/怪物配置重载以便注册自定义掉落。
+
+**Q：`mythicmobs_skill` 宝石技能不触发？**
+
+确认宝石的 `buffType` 为 `mythicmobs_skill`、`attribute` 中的技能名与 MythicMobs 中配置的技能完全一致，且该装备已镶嵌；目前触发时机为玩家用该装备近战攻击命中目标（`ENTITY_ATTACK`），技能冷却、条件、目标选择等由 MythicMobs 自行处理。
 
 **Q：如何排查配置问题？**
 

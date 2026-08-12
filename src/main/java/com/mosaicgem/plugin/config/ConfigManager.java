@@ -59,8 +59,9 @@ public class ConfigManager {
         for (GemDefinition gem : gems.values()) {
             if (!ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(gem.getBuffType())
                     && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(gem.getBuffType())
-                    && !ItemFactory.BUFF_TYPE_ENCHANT.equalsIgnoreCase(gem.getBuffType())) {
-                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType() + "（当前仅支持 sx_attribute / vanilla_attribute / enchant，属性将不会注入）");
+                    && !ItemFactory.BUFF_TYPE_ENCHANT.equalsIgnoreCase(gem.getBuffType())
+                    && !ItemFactory.BUFF_TYPE_MM_SKILL.equalsIgnoreCase(gem.getBuffType())) {
+                plugin.getLogger().warning("宝石 [" + gem.getId() + "] 的 buffType 不受支持: " + gem.getBuffType() + "（当前仅支持 sx_attribute / vanilla_attribute / enchant / mythicmobs_skill，属性将不会注入）");
                 warnings++;
             }
         }

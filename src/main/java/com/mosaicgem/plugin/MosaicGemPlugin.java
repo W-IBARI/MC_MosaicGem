@@ -3,8 +3,10 @@ package com.mosaicgem.plugin;
 import com.mosaicgem.plugin.command.MosaicGemCommand;
 import com.mosaicgem.plugin.config.ConfigManager;
 import com.mosaicgem.plugin.listener.InteractionListener;
+import com.mosaicgem.plugin.listener.MythicSkillListener;
 import com.mosaicgem.plugin.service.GemService;
 import com.mosaicgem.plugin.util.ItemFactory;
+import com.mosaicgem.plugin.util.MythicMobsBridge;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -25,6 +27,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
     private ItemFactory itemFactory;
     private GemService gemService;
     private InteractionListener interactionListener;
+    private MythicMobsBridge mythicMobsBridge;
     private MosaicGemCommand command;
 
     public static MosaicGemPlugin instance() {
@@ -47,6 +50,11 @@ public final class MosaicGemPlugin extends JavaPlugin {
         gemService = new GemService(this, configManager, itemFactory);
         interactionListener = new InteractionListener(configManager, itemFactory, gemService);
         Bukkit.getPluginManager().registerEvents(interactionListener, this);
+
+        mythicMobsBridge = new MythicMobsBridge(this, configManager, itemFactory);
+        if (mythicMobsBridge.isAvailable()) {
+            Bukkit.getPluginManager().registerEvents(new MythicSkillListener(configManager, itemFactory, mythicMobsBridge), this);
+        }
 
         command = new MosaicGemCommand(this, configManager, itemFactory);
         PluginCommand pluginCommand = getCommand("mosaicgem");

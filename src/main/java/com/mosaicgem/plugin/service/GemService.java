@@ -168,7 +168,8 @@ public class GemService {
         }
         if (!ItemFactory.BUFF_TYPE_SX.equalsIgnoreCase(definition.getBuffType())
                 && !ItemFactory.BUFF_TYPE_VANILLA.equalsIgnoreCase(definition.getBuffType())
-                && !ItemFactory.BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())) {
+                && !ItemFactory.BUFF_TYPE_ENCHANT.equalsIgnoreCase(definition.getBuffType())
+                && !ItemFactory.BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
             return fail(configs.message("socket-bufftype-unsupported"), target, false);
         }
         if (definition.getRepetitions() != null) {

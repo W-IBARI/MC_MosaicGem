@@ -551,6 +551,23 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         }
 
         try {
+            // MythicMobs 技能宝石：镶嵌信息应显示配置的 MM 技能名
+            GemDefinition mmDefinition = configs.getGem("MM技能测试宝石");
+            if (mmDefinition == null) {
+                throw new IllegalStateException("缺少 MM 技能测试宝石配置");
+            }
+            List<String> skillLines = factory.resolveGemValueList(
+                    new SocketedGem(mmDefinition.getId(), "mm-uuid-display", Map.of(), List.of()));
+            if (!skillLines.contains("TestSkill")) {
+                throw new IllegalStateException("MM 技能宝石信息未显示技能名: " + skillLines);
+            }
+            ok++;
+        } catch (Exception e) {
+            fail++;
+            lines.add(configs.message("selftest-attribute-merge-fail").replace("{error}", "MM技能: " + e.getMessage()));
+        }
+
+        try {
             // 打孔：镶嵌信息 lore 应原地更新，不产生重复的孔位行
             ItemStack punchSword = new ItemStack(Material.IRON_SWORD);
             punchSword.editMeta(meta -> meta.setLore(List.of("&7基础描述")));

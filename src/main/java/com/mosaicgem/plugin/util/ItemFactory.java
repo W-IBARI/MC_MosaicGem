@@ -58,6 +58,9 @@ public class ItemFactory {
     /** 宝石加成方式：原版附魔（附加/叠加到物品的原版附魔） */
     public static final String BUFF_TYPE_ENCHANT = "enchant";
 
+    /** 宝石加成方式：MythicMobs 技能（镶嵌后按 MythicMobs 规则发动技能） */
+    public static final String BUFF_TYPE_MM_SKILL = "mythicmobs_skill";
+
     /** CrazyEnchantments 附魔 id 前缀（配置使用 ce:Wither 格式） */
     public static final String CRAZY_ENCHANT_PREFIX = "ce:";
 
@@ -528,6 +531,12 @@ public class ItemFactory {
                     .map(attr -> enchantDisplay(normalizeEnchantId(attr.id()), resolve(attr.value(), gem.values())))
                     .collect(Collectors.joining("、"));
         }
+        if (BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
+            return definition.getAttribute().stream()
+                    .map(line -> stripLoreText(resolve(line, gem.values())))
+                    .filter(line -> !line.isEmpty())
+                    .collect(Collectors.joining("、"));
+        }
         return definition.getAttribute().stream()
                 .map(line -> resolve(line, gem.values()))
                 .map(ItemFactory::stripLoreText)
@@ -558,6 +567,15 @@ public class ItemFactory {
                 VanillaAttribute attribute = parseVanillaAttribute(line);
                 if (attribute != null) {
                     result.add(enchantDisplay(normalizeEnchantId(attribute.id()), resolve(attribute.value(), gem.values())));
+                }
+            }
+            return result;
+        }
+        if (BUFF_TYPE_MM_SKILL.equalsIgnoreCase(definition.getBuffType())) {
+            for (String line : definition.getAttribute()) {
+                String skill = stripLoreText(resolve(line, gem.values()));
+                if (!skill.isEmpty()) {
+                    result.add(skill);
                 }
             }
             return result;

@@ -13,6 +13,7 @@
 #     sx_attribute：SX 属性，属性行写入装备 lore，由 SX-Attribute 读取
 #     vanilla_attribute：原版属性，直接附加到装备的属性修饰符（AttributeModifier）
 #     enchant：附魔，直接附加/叠加到装备的原版附魔（CrazyEnchantments 附魔用 ce: 前缀）
+#     mythicmobs_skill：MythicMobs 技能，镶嵌后玩家用该装备攻击时按 MM 规则发动技能
 #   attribute: 注入的属性行
 #     sx_attribute 格式：'属性名：数值'（如 '攻击力：${random_value}'）
 #     vanilla_attribute 格式：'原版属性id：数值'（如 'minecraft:attack_damage: ${random_value}'）
@@ -88,3 +89,23 @@ SA测试宝石:
   attribute:
     - 'minecraft:sharpness: ${random_value}'
     - 'minecraft:unbreaking: 1'
+
+MM技能测试宝石:
+  material: PAPER
+  isEnchant: true
+  name: "&eMM技能测试宝石"
+  lore:
+    - ''
+    - '&7可镶嵌的装备类型: &f剑'
+    - ''
+    - '&f[ &eMythicMobs 技能 &f]'
+    - '&a▪ 技能: TestSkill'
+  custom-model-data: 0
+  targetType:
+    - SWORD
+  targetMaterial:
+    - IRON_SWORD
+  repetitions: 5
+  buffType: 'mythicmobs_skill'
+  attribute:
+    - 'TestSkill'
