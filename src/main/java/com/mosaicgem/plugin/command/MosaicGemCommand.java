@@ -598,11 +598,17 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
         }
 
         try {
-            // 指令权限：应从 permissions.yml 读取，未配置时回退到内置默认节点
+            // 指令权限：应从 permissions.yml 读取，未配置时回退到内置默认节点/默认权限级
             if (!configs.commandPermissionNodes("reload").contains("mosaicgem.reload")
                     || !configs.commandPermissionNodes("give").contains("mosaicgem.give")
                     || !configs.commandPermissionNodes("debug").contains("mosaicgem.debug")
-                    || !configs.commandPermissionNodes("selftest").contains("mosaicgem.debug")) {
+                    || !configs.commandPermissionNodes("selftest").contains("mosaicgem.debug")
+                    || !"op".equals(configs.commandDefaultLevel("reload"))
+                    || !"op".equals(configs.commandDefaultLevel("give"))
+                    || !"op".equals(configs.commandDefaultLevel("debug"))
+                    || !"op".equals(configs.commandDefaultLevel("list"))
+                    || !"op".equals(configs.commandDefaultLevel("selftest"))
+                    || !"op".equals(configs.commandDefaultLevel("unknown"))) {
                 throw new IllegalStateException("指令权限节点读取异常: " + configs.commandPermissionNodes("reload"));
             }
             ok++;

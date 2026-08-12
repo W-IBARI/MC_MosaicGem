@@ -204,22 +204,19 @@ public class ConfigManager {
 
     /**
      * 判断发送者是否有权执行指定指令。
-     * 权限节点来自根目录 permissions.yml，可被 LuckPerms 等权限插件管理。
+     * 先判断权限节点（由 LuckPerms 等权限插件管理），再按 default-level 判定默认权限级。
      */
     public boolean hasCommandPermission(CommandSender sender, String command) {
-        if (sender == null || sender.isOp()) {
+        if (sender == null) {
             return true;
         }
         List<String> nodes = commandPermissionNodes(command);
-        if (nodes.isEmpty()) {
-            return true;
-        }
         for (String node : nodes) {
             if (node != null && !node.isBlank() && sender.hasPermission(node.trim())) {
                 return true;
             }
         }
-        return false;
+        return defaultLevelAllows(sender, commandDefaultLevel(command));
     }
 
     /**
@@ -243,6 +240,35 @@ public class ConfigManager {
             case "debug", "selftest" -> List.of("mosaicgem.debug");
             case "list" -> List.of("mosaicgem.list");
             default -> List.of();
+        };
+    }
+
+    /**
+     * 获取指令的默认权限级；未在 permissions.yml 中配置时默认 op。
+     * 可选值：op / true / false / not-op。
+     */
+    public String commandDefaultLevel(String command) {
+        if (command == null) {
+            return "op";
+        }
+        String level = permissions.getString("commands." + command + ".default-level", "op");
+        return level == null || level.isBlank() ? "op" : level.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 没有任何权限节点被授予时，按默认权限级判定：
+     * op      - 仅 OP 或以上
+     * true    - 所有玩家
+     * false   - 仅权限插件授予者（无默认权限）
+     * not-op  - 非 OP 玩家
+     * 其他未知值一律按 op 处理。
+     */
+    private boolean defaultLevelAllows(CommandSender sender, String level) {
+        return switch (level) {
+            case "true" -> true;
+            case "false" -> false;
+            case "not-op" -> !sender.isOp();
+            default -> sender.isOp();
         };
     }
 

@@ -95,9 +95,9 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 | --- | --- | --- |
 | `/mosaicgem reload` | 重载全部配置文件（缺失的 yml 自动补齐） | `mosaicgem.reload`（默认 OP） |
 | `/mosaicgem give <id> [数量] [玩家]` | 给予宝石/打孔器/拆卸器（自动匹配类型，不区分） | `mosaicgem.give`（默认 OP） |
-| `/mosaicgem debug [玩家]` | 查看物品的孔数、宝石、属性行等调试信息 | `mosaicgem.debug`（默认所有玩家） |
-| `/mosaicgem list <gem\|puncher\|remover>` | 列出已配置的物品 | `mosaicgem.list`（默认所有玩家） |
-| `/mosaicgem selftest` | 无玩家环境自检：配置解析、物品生成、数据读写、属性合并 | `mosaicgem.debug` |
+| `/mosaicgem debug [玩家]` | 查看物品的孔数、宝石、属性行等调试信息 | `mosaicgem.debug`（默认 OP） |
+| `/mosaicgem list <gem\|puncher\|remover>` | 列出已配置的物品 | `mosaicgem.list`（默认 OP） |
+| `/mosaicgem selftest` | 无玩家环境自检：配置解析、物品生成、数据读写、属性合并 | `mosaicgem.debug`（默认 OP） |
 
 指令别名：`/mg`、`/mgem`。
 
@@ -126,26 +126,36 @@ settings:
 ```yaml
 commands:
   reload:
+    default-level: op
     permissions:
       - mosaicgem.reload
   give:
+    default-level: op
     permissions:
       - mosaicgem.give
   debug:
+    default-level: op
     permissions:
       - mosaicgem.debug
   list:
+    default-level: op
     permissions:
       - mosaicgem.list
   selftest:
+    default-level: op
     permissions:
       - mosaicgem.debug
 ```
 
 - 每个指令可配置多个节点，玩家满足任意一个即可使用
-- `permissions: []`（空列表）表示该指令不需要任何权限，所有玩家可用
-- 未在文件中配置的指令回退到插件内置默认节点（即上表默认值）
-- 使用 LuckPerms 等权限插件时无需任何额外适配：直接给玩家/用户组分配这里配置的节点即可（如 `/lp user <玩家> permission set mosaicgem.reload true`），Bukkit 的标准权限系统会自动交给 LuckPerms 判定
+- `default-level` 为该指令的默认权限级（玩家未获得任何权限节点时的判定），可选值：
+  - `op`：仅 OP 或以上（**默认**，全部指令默认均为 OP）
+  - `true`：所有玩家
+  - `false`：无默认权限，只能通过权限插件授予
+  - `not-op`：非 OP 玩家
+- `permissions: []`（空列表）表示不需要任何特定权限节点，仅按 `default-level` 判定
+- 未在文件中配置的指令回退到内置默认节点与默认权限级（`op`）
+- 使用 LuckPerms 等权限插件时无需任何额外适配：直接给玩家/用户组分配这里配置的节点即可覆盖默认权限级（如 `/lp user <玩家> permission set mosaicgem.reload true`），Bukkit 的标准权限系统会自动交给 LuckPerms 判定
 
 #### socket-lore：装备上的镶嵌信息（三种模式共用）
 

@@ -19,6 +19,7 @@ commands:
       - mgem
 
 permissions:
+# 默认全部为 OP；如需调整，请修改插件根目录的 permissions.yml
   mosaicgem.reload:
     default: op
     description: 重载 MosaicGem 配置
@@ -26,8 +27,8 @@ permissions:
     default: op
     description: 给予宝石/打孔器/拆卸器
   mosaicgem.debug:
-    default: true
+    default: op
     description: 查看物品调试信息
   mosaicgem.list:
-    default: true
+    default: op
     description: 查看已配置物品列表

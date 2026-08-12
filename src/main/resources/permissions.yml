@@ -1,23 +1,33 @@
 # 指令权限配置
 # 每个指令可配置多个权限节点，玩家满足任意一个即可使用；
-# 留空列表（permissions: []）表示不需要任何权限，所有玩家可用；
-# 未配置的指令回退到插件内置默认权限。
+# 留空列表（permissions: []）表示不需要任何特定权限节点，仅按 default-level 判定。
 #
-# 本文件与 LuckPerms 等权限插件完全兼容：直接给玩家/用户组分配这里的节点即可，
+# default-level 为该指令的默认权限级（玩家未获得任何权限节点时的判定）：
+#   op      - 仅 OP 或以上（默认）
+#   true    - 所有玩家
+#   false   - 无默认权限，只能通过权限插件授予
+#   not-op  - 非 OP 玩家
+#
+# 本文件与 LuckPerms 等权限插件完全兼容：给玩家/用户组分配这里的节点即可覆盖默认权限级，
 # 例如：/lp user <玩家> permission set mosaicgem.reload true
 commands:
   reload:
+    default-level: op
     permissions:
       - mosaicgem.reload
   give:
+    default-level: op
     permissions:
       - mosaicgem.give
   debug:
+    default-level: op
     permissions:
       - mosaicgem.debug
   list:
+    default-level: op
     permissions:
       - mosaicgem.list
   selftest:
+    default-level: op
     permissions:
       - mosaicgem.debug
