@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -51,9 +53,7 @@ public class ConfigManager {
         punchers.clear();
         removers.clear();
 
-        gems.putAll(loadDefinitions("gems.yml", GemDefinition::new));
-        punchers.putAll(loadDefinitions("punchers.yml", PuncherDefinition::new));
-        removers.putAll(loadDefinitions("removers.yml", RemoverDefinition::new));
+        loadItemFiles();
 
         int warnings = 0;
         for (GemDefinition gem : gems.values()) {
@@ -142,24 +142,104 @@ public class ConfigManager {
         }
     }
 
-    private <T extends ItemDefinition> Map<String, T> loadDefinitions(String fileName, DefinitionFactory<T> factory) {
-        Map<String, T> result = new LinkedHashMap<>();
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(
-                new File(plugin.getDataFolder(), "items" + File.separator + fileName));
-        for (String key : cfg.getKeys(false)) {
-            ConfigurationSection section = cfg.getConfigurationSection(key);
-            if (section == null) {
-                continue;
-            }
-            T definition = factory.create(key, section);
-            if (!definition.isValid()) {
-                plugin.getLogger().warning("跳过无效配置: " + fileName + " -> " + key + "（material 无效）");
-                continue;
-            }
-            result.put(key, definition);
+    /**
+     * 扫描 items 目录下所有 .yml（含子目录），逐个尝试识别物品配置。
+     * 支持新版分区格式（文件顶层出现 gems: / punchers: / removers: 段），
+     * 兼容旧版扁平格式（gems.yml / punchers.yml / removers.yml 顶层直接是物品 id）。
+     */
+    private void loadItemFiles() {
+        File itemsDir = new File(plugin.getDataFolder(), "items");
+        List<File> files = new ArrayList<>();
+        collectYmlFiles(itemsDir, files);
+        files.sort(Comparator.comparing(File::getPath));
+        if (files.isEmpty()) {
+            plugin.getLogger().warning("未找到任何物品配置文件（items 目录为空）");
+            return;
         }
-        plugin.getLogger().info("已加载 " + fileName + ": " + result.size() + " 个");
-        return result;
+        for (File file : files) {
+            loadItemFile(file);
+        }
+        plugin.getLogger().info("已加载 gems: " + gems.size()
+                + " 个、punchers: " + punchers.size()
+                + " 个、removers: " + removers.size() + " 个");
+    }
+
+    private void collectYmlFiles(File dir, List<File> out) {
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            if (child.isDirectory()) {
+                collectYmlFiles(child, out);
+            } else if (child.getName().toLowerCase(Locale.ROOT).endsWith(".yml")) {
+                out.add(child);
+            }
+        }
+    }
+
+    private void loadItemFile(File file) {
+        FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        boolean recognized = false;
+        recognized |= loadTypeSection(cfg, "gems", GemDefinition::new, file, gems);
+        recognized |= loadTypeSection(cfg, "punchers", PuncherDefinition::new, file, punchers);
+        recognized |= loadTypeSection(cfg, "removers", RemoverDefinition::new, file, removers);
+        if (recognized) {
+            return;
+        }
+        // 兼容旧版扁平格式：按文件名推断物品类型
+        String name = file.getName().toLowerCase(Locale.ROOT);
+        switch (name) {
+            case "gems.yml" -> loadEntries(cfg, GemDefinition::new, file, "gems", gems);
+            case "punchers.yml" -> loadEntries(cfg, PuncherDefinition::new, file, "punchers", punchers);
+            case "removers.yml" -> loadEntries(cfg, RemoverDefinition::new, file, "removers", removers);
+            default -> plugin.getLogger().warning("跳过无法识别类型的物品配置: " + file.getPath()
+                    + "（请在文件顶层使用 gems: / punchers: / removers: 段声明类型）");
+        }
+    }
+
+    private <T extends ItemDefinition> boolean loadTypeSection(
+            FileConfiguration cfg,
+            String type,
+            DefinitionFactory<T> factory,
+            File file,
+            Map<String, T> target
+    ) {
+        ConfigurationSection section = cfg.getConfigurationSection(type);
+        if (section == null) {
+            return false;
+        }
+        loadEntries(section, factory, file, type, target);
+        return true;
+    }
+
+    private <T extends ItemDefinition> void loadEntries(
+            ConfigurationSection section,
+            DefinitionFactory<T> factory,
+            File file,
+            String type,
+            Map<String, T> target
+    ) {
+        int count = 0;
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection entry = section.getConfigurationSection(key);
+            if (entry == null) {
+                continue;
+            }
+            T definition = factory.create(key, entry);
+            if (!definition.isValid()) {
+                plugin.getLogger().warning("跳过无效配置: " + file.getName() + " -> " + type + "." + key + "（material 无效）");
+                continue;
+            }
+            if (target.containsKey(key)) {
+                plugin.getLogger().warning("物品配置重复，后加载的覆盖先前的: " + key + "（" + file.getName() + "）");
+            }
+            target.put(key, definition);
+            count++;
+        }
+        if (count > 0) {
+            plugin.getLogger().info("已从 " + file.getName() + " 加载 " + type + ": " + count + " 个");
+        }
     }
 
     private interface DefinitionFactory<T extends ItemDefinition> {

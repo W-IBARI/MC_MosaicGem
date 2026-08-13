@@ -1,4 +1,6 @@
 # 宝石配置
+# items 目录下的任意 .yml（含子目录）都会被尝试识别为物品配置；
+# 文件顶层使用 gems: / punchers: / removers: 段声明物品类型，可多个段共存于同一文件。
 # 本文件在插件首次启动时按已安装的软依赖自动生成：
 #   - 已安装 SX-Attribute   -> 生成 SA测试宝石（sx_attribute）
 #   - 已安装 MythicMobs     -> 生成 MM技能测试宝石（mythicmobs_skill）
@@ -29,3 +31,4 @@
 #     enchant 格式：'附魔id：等级'（如 'minecraft:sharpness: ${random_value}' 或 'ce:Wither: 2'）
 #     附魔 id 的显示名在 messages/<语言>.yml 的 enchant-names 段中配置
 
+gems:

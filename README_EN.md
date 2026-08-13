@@ -272,9 +272,26 @@ The language files also contain two name mapping sections:
 
 There are also success/command/help/debug/selftest messages (`punch-success`, `socket-success`, `remove-success`, `reload-success`, `give-*`, `player-not-found`, `no-permission`, `help-*`, `debug-*`, `selftest-*`, etc.); see the comments inside the files for the full key list.
 
+### items/ directory (item configs)
+
+Every `.yml` under `plugins/MosaicGem/items/` (including subdirectories) is treated as a potential item config file. The item type is declared by top-level sections; multiple sections can coexist in one file, and definitions can be split across any number of files:
+
+```yaml
+gems:
+  # gem definitions…
+punchers:
+  # puncher definitions…
+removers:
+  # remover definitions…
+```
+
+- Type sections: `gems:` (gems), `punchers:` (punchers), `removers:` (removers)
+- Legacy flat format (`gems.yml` / `punchers.yml` / `removers.yml` with item ids directly at the top level) is still supported
+- If the same id appears in multiple files, the later-loaded definition overrides the earlier one (a warning is logged at startup/reload)
+
 ### items/gems.yml
 
-On first startup, `items/gems.yml` is generated according to the installed soft dependencies, so unused sample gems are not shown:
+On first startup, `items/gems.yml` is generated (using a `gems:` section) according to the installed soft dependencies, so unused sample gems are not shown:
 
 - Always generated: `原版测试宝石` (`vanilla_attribute`), `附魔测试宝石` (`enchant`)
 - With SX-Attribute installed: `SA测试宝石` (`sx_attribute`) is also generated
@@ -283,79 +300,79 @@ On first startup, `items/gems.yml` is generated according to the installed soft 
 After installing a new soft dependency, delete `plugins/MosaicGem/items/gems.yml` and run `/mosaicgem reload` to regenerate it (existing files are never overwritten, so custom config is preserved). The full example below shows the file when every soft dependency is installed:
 
 ```yaml
-# Internal id (used by the give command)
-SA测试宝石:
-  material: PAPER              # item material
-  isEnchant: true              # enchant glint
-  name: "&cSA测试宝石"          # display name (supports & color codes)
-  lore:                        # item lore
-    - '&a▪ 伤害增加：${random_value}'
-  custom-model-data: 0         # custom model data
-  targetType:                  # allowed equipment types; empty = all
-    - SWORD
-  targetMaterial:              # allowed equipment ids; empty = all (AND with targetType)
-    - IRON_SWORD
-  repetitions: 5               # max times this gem can be socketed; empty = unlimited
-  random:                      # random values rolled at creation; referenced in lore/attribute
-    random_value: '10.00~20.00'
-  buffType: 'sx_attribute'     # SX attribute: written to lore, read by SX-Attribute
-  attribute:                   # sx_attribute only: "属性名：数值"
-    - '攻击力：${random_value}'
-    - '防御力：${random_value}'
+gems:
+  SA测试宝石:
+    material: PAPER              # item material
+    isEnchant: true              # enchant glint
+    name: "&cSA测试宝石"          # display name (supports & color codes)
+    lore:                        # item lore
+      - '&a▪ 伤害增加：${random_value}'
+    custom-model-data: 0         # custom model data
+    targetType:                  # allowed equipment types; empty = all
+      - SWORD
+    targetMaterial:              # allowed equipment ids; empty = all (AND with targetType)
+      - IRON_SWORD
+    repetitions: 5               # max times this gem can be socketed; empty = unlimited
+    random:                      # random values rolled at creation; referenced in lore/attribute
+      random_value: '10.00~20.00'
+    buffType: 'sx_attribute'     # SX attribute: written to lore, read by SX-Attribute
+    attribute:                   # sx_attribute only: "属性名：数值"
+      - '攻击力：${random_value}'
+      - '防御力：${random_value}'
 
-原版测试宝石:
-  material: PAPER
-  isEnchant: true
-  name: "&b原版测试宝石"
-  lore:
-    - '&a▪ 攻击伤害：${random_value}'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  repetitions: 5
-  random:
-    random_value: '5.00~10.00'
-  buffType: 'vanilla_attribute'  # vanilla attribute: applied to AttributeModifier, lore untouched
-  attribute:                     # vanilla_attribute only: "vanilla attribute id：数值"
-    - 'minecraft:attack_damage: ${random_value}'
-    - 'minecraft:attack_speed: 2'
+  原版测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&b原版测试宝石"
+    lore:
+      - '&a▪ 攻击伤害：${random_value}'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    random:
+      random_value: '5.00~10.00'
+    buffType: 'vanilla_attribute'  # vanilla attribute: applied to AttributeModifier, lore untouched
+    attribute:                     # vanilla_attribute only: "vanilla attribute id：数值"
+      - 'minecraft:attack_damage: ${random_value}'
+      - 'minecraft:attack_speed: 2'
 
-附魔测试宝石:
-  material: PAPER
-  isEnchant: true
-  name: "&d附魔测试宝石"
-  lore:
-    - '&a▪ 锋利等级：${random_value}'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  repetitions: 5
-  random:
-    random_value: '1~5'
-  buffType: 'enchant'                # enchant: added/stacked onto the item
-  attribute:                         # enchant only: "enchant id：level"
-    - 'minecraft:sharpness: ${random_value}'
-    - 'minecraft:unbreaking: 1'
+  附魔测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&d附魔测试宝石"
+    lore:
+      - '&a▪ 锋利等级：${random_value}'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    random:
+      random_value: '1~5'
+    buffType: 'enchant'                # enchant: added/stacked onto the item
+    attribute:                         # enchant only: "enchant id：level"
+      - 'minecraft:sharpness: ${random_value}'
+      - 'minecraft:unbreaking: 1'
 
-MM技能测试宝石:
-  material: PAPER
-  isEnchant: true
-  name: "&eMM技能测试宝石"
-  lore:
-    - '&a▪ 技能: TestSkill'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  repetitions: 5
-  buffType: 'mythicmobs_skill'       # MythicMobs skill: triggered by Crucible item skills
-  attribute:                         # mythicmobs_skill only: one MythicMobs skill per line
-    - 'TestSkill @onSwing'
+  MM技能测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&eMM技能测试宝石"
+    lore:
+      - '&a▪ 技能: TestSkill'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    buffType: 'mythicmobs_skill'       # MythicMobs skill: triggered by Crucible item skills
+    attribute:                         # mythicmobs_skill only: one MythicMobs skill per line
+      - 'TestSkill @onSwing'
 ```
 
 - `random` supports multiple random numbers in `min~max` format; decimals follow the configured precision and the value is fixed to the gem instance
@@ -371,36 +388,38 @@ MM技能测试宝石:
 ### items/punchers.yml
 
 ```yaml
-测试打孔器:
-  material: PAPER
-  isEnchant: true
-  name: "&c测试打孔器"
-  lore:
-    - '我是lore描述'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  rate: 10                     # success rate (0-100, percentage)
-  holesnum: 2                  # max sockets this puncher type can add to one item
+punchers:
+  测试打孔器:
+    material: PAPER
+    isEnchant: true
+    name: "&c测试打孔器"
+    lore:
+      - '我是lore描述'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    rate: 10                     # success rate (0-100, percentage)
+    holesnum: 2                  # max sockets this puncher type can add to one item
 ```
 
 ### items/removers.yml
 
 ```yaml
-测试拆卸器:
-  material: PAPER
-  isEnchant: true
-  name: "&c测试拆卸器"
-  lore:
-    - '我是lore描述'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  rate: 10                     # success rate (0-100, percentage)
+removers:
+  测试拆卸器:
+    material: PAPER
+    isEnchant: true
+    name: "&c测试拆卸器"
+    lore:
+      - '我是lore描述'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    rate: 10                     # success rate (0-100, percentage)
 ```
 
 ## Data Storage & Attribute Calculation

@@ -389,9 +389,10 @@ public class MosaicGemCommand implements CommandExecutor, TabCompleter {
             boolean hasMarker = mergedLine.contains(SxAttributeLoreService.MARKER);
             boolean hasSectionX = mergedLine.contains("\u00A7X");
             boolean hasZw = mergedLine.contains("\u200B");
-            boolean resetMainHand = resultLore.get(0).contains("\u00A7r");
-            boolean resetAttribute = mergedLine.contains("\u00A7r");
-            boolean resetAttackSpeed = resultLore.get(2).contains("\u00A7r");
+            // 1.0.1 起文本经 MiniMessage 解析，§r 已转为真实样式，这里改为检查组件是否为正体
+            boolean resetMainHand = hasItalicFalse(sword.lore().get(0));
+            boolean resetAttribute = hasItalicFalse(mergedComponent);
+            boolean resetAttackSpeed = hasItalicFalse(sword.lore().get(2));
             boolean italicOther = resultLore.get(3).contains("\u00A7o");
             boolean boldOther = resultLore.get(4).contains("\u00A7l");
             if (!mergedLine.contains("33.90") || !ItemFactory.stripLoreText(mergedLine).contains("（+20") || !hasMarker

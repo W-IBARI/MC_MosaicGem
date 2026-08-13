@@ -1,23 +1,23 @@
-原版测试宝石:
-  material: PAPER
-  isEnchant: true
-  name: "&b原版测试宝石"
-  lore:
-    - ''
-    - '&7可镶嵌的装备类型: &f剑'
-    - ''
-    - '&f[ &b原版属性 &f]'
-    - '&a▪ 攻击伤害：${random_value}'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  repetitions: 5
-  random:
-    random_value: '5.00~10.00'
-  buffType: 'vanilla_attribute'
-  attribute:
-    - 'minecraft:attack_damage: ${random_value}'
-    - 'minecraft:attack_speed: 2'
+  原版测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&b原版测试宝石"
+    lore:
+      - ''
+      - '&7可镶嵌的装备类型: &f剑'
+      - ''
+      - '&f[ &b原版属性 &f]'
+      - '&a▪ 攻击伤害：${random_value}'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    random:
+      random_value: '5.00~10.00'
+    buffType: 'vanilla_attribute'
+    attribute:
+      - 'minecraft:attack_damage: ${random_value}'
+      - 'minecraft:attack_speed: 2'
 

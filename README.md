@@ -270,90 +270,107 @@ sx-attribute-lore:
 
 另有成功/指令/帮助/调试/自检类消息：`punch-success`、`socket-success`、`remove-success`、`reload-success`、`give-*`、`player-not-found`、`no-permission`、`help-*`、`debug-*`、`selftest-*` 等，完整键值见文件内注释。
 
+### items/ 目录（物品配置）
+
+`plugins/MosaicGem/items/` 下的任意 `.yml`（含子目录）都会被尝试识别为物品配置。文件顶层使用类型段声明物品类型，多个类型段可共存于同一文件，也可分散在任意多个文件中：
+
+```yaml
+gems:
+  # 宝石配置……
+punchers:
+  # 打孔器配置……
+removers:
+  # 拆卸器配置……
+```
+
+- 类型段：`gems:`（宝石）、`punchers:`（打孔器）、`removers:`（拆卸器）
+- 旧版扁平格式（`gems.yml` / `punchers.yml` / `removers.yml` 顶层直接写物品 id）仍然兼容
+- 同一 id 在多个文件中重复时，后加载的覆盖先前的（启动/重载日志会提示）
+
 ### items/gems.yml
 
-首次启动时 `items/gems.yml` 会按已安装的软依赖自动生成，避免展示用不到的示例宝石：
+首次启动时 `items/gems.yml` 会按已安装的软依赖自动生成（使用 `gems:` 段），避免展示用不到的示例宝石：
 
 - 始终生成：`原版测试宝石`（`vanilla_attribute`）、`附魔测试宝石`（`enchant`）
 - 已安装 SX-Attribute：额外生成 `SA测试宝石`（`sx_attribute`）
 - 已安装 MythicMobs：额外生成 `MM技能测试宝石`（`mythicmobs_skill`）
 
-之后新安装软依赖时，删除 `plugins/MosaicGem/items/gems.yml` 并执行 `/mosaicgem reload` 即可重新生成（已有文件不会被覆盖，避免丢失自定义配置）。以下是所有软依赖齐全时的完整示例：
+之后新安装软依赖时，删除 `plugins/MosaicGem/items/gems.yml` 并执行 `/mosaicgem reload` 即可重新生成（已有文件不会被覆盖，避免丢失自定义配置）。以下是所有软依赖齐全时的生成示例：
 
 ```yaml
-# 内部名（指令发放时使用）
-SA测试宝石:
-  material: PAPER              # 物品材质
-  isEnchant: true              # 是否带附魔光效
-  name: "&cSA测试宝石"          # 物品名称（支持 & 颜色代码）
-  lore:                        # 物品 lore
-    - '&a▪ 伤害增加：${random_value}'
-  custom-model-data: 0         # 自定义模型序号
-  targetType:                  # 可镶嵌装备类型，不填默认全生效
-    - SWORD
-  targetMaterial:              # 可镶嵌装备 id，不填默认全生效（与 targetType 为且关系）
-    - IRON_SWORD
-  repetitions: 5               # 同种宝石可重复镶嵌次数，不填默认无上限
-  random:                      # 宝石生成时随机取值，可在 lore/attribute 中引用
-    random_value: '10.00~20.00'
-  buffType: 'sx_attribute'     # SX 属性：写入 lore，由 SX-Attribute 读取
-  attribute:                   # 仅 sx_attribute：格式为「属性名：数值」
-    - '攻击力：${random_value}'
-    - '防御力：${random_value}'
+gems:
+  SA测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&cSA测试宝石"
+    lore:
+      - '&a▪ 伤害增加：${random_value}'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    random:
+      random_value: '10.00~20.00'
+    buffType: 'sx_attribute'
+    attribute:
+      - '攻击力：${random_value}'
+      - '防御力：${random_value}'
 
-原版测试宝石:
-  material: PAPER
-  isEnchant: true
-  name: "&b原版测试宝石"
-  lore:
-    - '&a▪ 攻击伤害：${random_value}'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  repetitions: 5
-  random:
-    random_value: '5.00~10.00'
-  buffType: 'vanilla_attribute'  # 原版属性：直接附加到物品属性修饰符，不修改 lore
-  attribute:                     # 仅 vanilla_attribute：格式为「原版属性id：数值」
-    - 'minecraft:attack_damage: ${random_value}'
-    - 'minecraft:attack_speed: 2'
+  原版测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&b原版测试宝石"
+    lore:
+      - '&a▪ 攻击伤害：${random_value}'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    random:
+      random_value: '5.00~10.00'
+    buffType: 'vanilla_attribute'
+    attribute:
+      - 'minecraft:attack_damage: ${random_value}'
+      - 'minecraft:attack_speed: 2'
 
-附魔测试宝石:
-  material: PAPER
-  isEnchant: true
-  name: "&d附魔测试宝石"
-  lore:
-    - '&a▪ 锋利等级：${random_value}'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  repetitions: 5
-  random:
-    random_value: '1~5'
-  buffType: 'enchant'                # 附魔：直接附加/叠加到装备附魔
-  attribute:                         # 仅 enchant：格式为「附魔id：等级」
-    - 'minecraft:sharpness: ${random_value}'
-    - 'minecraft:unbreaking: 1'
+  附魔测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&d附魔测试宝石"
+    lore:
+      - '&a▪ 锋利等级：${random_value}'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    random:
+      random_value: '1~5'
+    buffType: 'enchant'
+    attribute:
+      - 'minecraft:sharpness: ${random_value}'
+      - 'minecraft:unbreaking: 1'
 
-MM技能测试宝石:
-  material: PAPER
-  isEnchant: true
-  name: "&eMM技能测试宝石"
-  lore:
-    - '&a▪ 技能: TestSkill'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  repetitions: 5
-  buffType: 'mythicmobs_skill'       # MythicMobs 技能：按 MythicCrucible 物品技能规则触发
-  attribute:                         # 仅 mythicmobs_skill：每一行是一个 MM 技能名
-    - 'TestSkill @onSwing'
+  MM技能测试宝石:
+    material: PAPER
+    isEnchant: true
+    name: "&eMM技能测试宝石"
+    lore:
+      - '&a▪ 技能: TestSkill'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    repetitions: 5
+    buffType: 'mythicmobs_skill'
+    attribute:
+      - 'TestSkill @onSwing'
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
@@ -369,36 +386,38 @@ MM技能测试宝石:
 ### items/punchers.yml
 
 ```yaml
-测试打孔器:
-  material: PAPER
-  isEnchant: true
-  name: "&c测试打孔器"
-  lore:
-    - '我是lore描述'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  rate: 10                     # 成功率（0-100，百分比）
-  holesnum: 2                  # 该类打孔器给同一物品的孔数上限
+punchers:
+  测试打孔器:
+    material: PAPER
+    isEnchant: true
+    name: "&c测试打孔器"
+    lore:
+      - '我是lore描述'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    rate: 10                     # 成功率（0-100，百分比）
+    holesnum: 2                  # 该类打孔器给同一物品的孔数上限
 ```
 
 ### items/removers.yml
 
 ```yaml
-测试拆卸器:
-  material: PAPER
-  isEnchant: true
-  name: "&c测试拆卸器"
-  lore:
-    - '我是lore描述'
-  custom-model-data: 0
-  targetType:
-    - SWORD
-  targetMaterial:
-    - IRON_SWORD
-  rate: 10                     # 成功率（0-100，百分比）
+removers:
+  测试拆卸器:
+    material: PAPER
+    isEnchant: true
+    name: "&c测试拆卸器"
+    lore:
+      - '我是lore描述'
+    custom-model-data: 0
+    targetType:
+      - SWORD
+    targetMaterial:
+      - IRON_SWORD
+    rate: 10                     # 成功率（0-100，百分比）
 ```
 
 ## 数据存储与属性计算
