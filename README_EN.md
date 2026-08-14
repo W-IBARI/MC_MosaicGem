@@ -21,7 +21,7 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 
 ## Requirements
 
-- Server: Folia 26.2 (Java Edition 26.2)
+- Server: Folia 26.x (26.1+, Java Edition 26.1+)
 - Java: JDK 25+
 - Optional dependencies: [SX-Attribute-Folia (26.2 optimized build)](https://github.com/W-IBARI/SX-Attribute-Folia-fixed) (required for `sx_attribute` gems, plus its dependency [SX-Item](https://github.com/Saukiya/SX-Item)); [CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/) (required for `ce:` custom enchants); [MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs) (required for `mythicmobs_skill` gems and gem drops); [MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible) (optional, enables multiple skill triggers for `mythicmobs_skill` gems)
 
@@ -442,7 +442,7 @@ removers:
 
 Artifact: `build/libs/MosaicGem-1.0.0-SNAPSHOT.jar`
 
-Development environment: JDK 25, Gradle 9.6.1 (project wrapper included), `dev.folia:folia-api:26.2.build.3-beta`.
+Development environment: JDK 25, Gradle 9.6.1 (project wrapper included), `dev.folia:folia-api:26.1.2.build.8-stable` (compile against the lowest 26.x stable to support all 26.x).
 
 ## FAQ
 

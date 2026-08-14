@@ -1,7 +1,7 @@
 name: MosaicGem
 version: '${projectVersion}'
 main: com.mosaicgem.plugin.MosaicGemPlugin
-api-version: '26.2'
+api-version: '26.1'
 folia-supported: true
 softdepend:
   - SX-Attribute

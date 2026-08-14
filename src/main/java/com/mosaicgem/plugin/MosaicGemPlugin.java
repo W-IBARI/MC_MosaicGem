@@ -86,7 +86,7 @@ public final class MosaicGemPlugin extends JavaPlugin {
             pluginCommand.setTabCompleter(command);
         }
 
-        getLogger().info("MosaicGem 已启用 (Folia 26.2)，当前语言: " + configManager.language());
+        getLogger().info("MosaicGem 已启用 (Folia " + Bukkit.getBukkitVersion() + ")，当前语言: " + configManager.language());
     }
 
     @Override

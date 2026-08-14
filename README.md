@@ -21,7 +21,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 ## 环境要求
 
-- 服务端：Folia 26.2（Java Edition 26.2）
+- 服务端：Folia 26.x（26.1 及以上，Java Edition 26.1+）
 - Java：JDK 25+
 - 可选依赖：[SX-Attribute-Folia（26.2 优化构建版）](https://github.com/W-IBARI/SX-Attribute-Folia-fixed)（`sx_attribute` 宝石属性生效需要，同时需要其前置 [SX-Item](https://github.com/Saukiya/SX-Item)）；[CrazyEnchantments](https://github.com/Crazy-Crew/CrazyEnchantments/)（`ce:` 前缀的自定义附魔宝石需要）；[MythicMobs](https://git.mythiccraft.io/mythiccraft/MythicMobs)（`mythicmobs_skill` 宝石与怪物掉落宝石需要）；[MythicCrucible](https://git.mythiccraft.io/mythiccraft/mythiccrucible)（`mythicmobs_skill` 宝石的多触发器支持需要，可选）
 
@@ -440,7 +440,7 @@ removers:
 
 构建产物：`build/libs/MosaicGem-1.0.0-SNAPSHOT.jar`
 
-开发环境：JDK 25、Gradle 9.6.1（项目自带 Wrapper）、`dev.folia:folia-api:26.2.build.3-beta`。
+开发环境：JDK 25、Gradle 9.6.1（项目自带 Wrapper）、`dev.folia:folia-api:26.1.2.build.8-stable`（针对 26.x 最低 stable 编译以兼容全部 26.x）。
 
 ## 常见问题
 
