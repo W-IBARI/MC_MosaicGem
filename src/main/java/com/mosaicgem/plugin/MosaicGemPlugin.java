@@ -24,6 +24,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Locale;
 
 public final class MosaicGemPlugin extends JavaPlugin {
 
@@ -112,9 +113,38 @@ public final class MosaicGemPlugin extends JavaPlugin {
     }
 
     private void saveItemFiles() {
+        if (hasAnyItemConfig()) {
+            getLogger().info("items 目录下已存在 .yml 物品配置，跳过默认文件生成");
+            return;
+        }
         generateGemsFileIfAbsent();
         saveResourceIfAbsent("items/punchers.yml");
         saveResourceIfAbsent("items/removers.yml");
+    }
+
+    /**
+     * items 目录（含子目录）下是否存在任何 .yml 文件。
+     * 只要存在，无论内容是否合法，都不再生成任何默认物品配置文件。
+     */
+    private boolean hasAnyItemConfig() {
+        return containsYmlFile(new File(getDataFolder(), "items"));
+    }
+
+    private boolean containsYmlFile(File dir) {
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return false;
+        }
+        for (File child : children) {
+            if (child.isDirectory()) {
+                if (containsYmlFile(child)) {
+                    return true;
+                }
+            } else if (child.getName().toLowerCase(Locale.ROOT).endsWith(".yml")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
