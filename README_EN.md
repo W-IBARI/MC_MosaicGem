@@ -12,7 +12,7 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 
 - **Equipment punching**: use a puncher to add sockets to equipment; success rate and two-dimensional socket limits are configurable
 - **Gem socketing**: gems carry random values. `sx_attribute` gems merge into the equipment attribute panel and are read by SX-Attribute; `vanilla_attribute` gems apply directly as vanilla attribute modifiers; `enchant` gems add/stack vanilla enchantments; `mythicmobs_skill` gems cast MythicMobs skills on the configured trigger (swing by default)
-- **Gem removal**: removed gems are returned with their original random values, and the equipment attribute panel is restored automatically
+- **Gem removal**: removed gems are returned with their original random values, and the equipment attribute panel is restored automatically; each gem can set its own `remove-destroy-chance` (0-100%) — independent of the remover's success rate, rolled after a successful removal, and on a hit the gem is destroyed and not returned
 - **Attribute panel merging**: an existing `攻击力：13.90` line plus a +20 gem becomes `攻击力：33.90（+20）`; attributes that only exist on the gem are appended as new lines
 - **Three interaction methods**: anvil, crafting (2x2 inventory or workbench), and dragging a tool onto the target item — each can be toggled independently
 - **Full player feedback**: every blocked or failed interaction notifies the player; messages are split into per-language files under `messages/`
@@ -110,6 +110,7 @@ Drops:
 - The gem is returned with its original random values (inventory first, dropped on the ground if the inventory is full)
 - The attribute panel is restored: `sx_attribute` lines return to their original values and gem-only lines are removed; `vanilla_attribute` modifiers are rebuilt from the remaining gems and merged natives are restored; `enchant` levels are rebuilt and native levels restored
 - Failure consumes one remover; the equipment and remaining gems are unaffected
+- **Gem destroy check**: each gem can set `remove-destroy-chance` (0-100, percent, default 0). This check is **independent of the remover's success rate** — it is rolled only after the remover succeeds; on a hit the gem is destroyed (lost, not returned) while the equipment is restored normally and the player sees the `remove-destroyed` message; on a miss the gem is returned normally
 
 ### Tool consumption and stacking
 
@@ -264,6 +265,7 @@ The language files also contain two name mapping sections:
 | `socket-bufftype-unsupported` | Socketing: buffType not supported |
 | `remove-empty` | Removal: no socketed gems |
 | `remove-fail` | Removal: success roll failed (tool consumed) |
+| `remove-destroyed` | Removal: succeeded but the gem's destroy check hit (gem lost, not returned) |
 | `target-invalid` | Target type/material does not match the tool's limits |
 | `interaction-disabled` | This interaction method is disabled |
 | `tool-config-missing` | Tool is not in the config |
@@ -297,7 +299,7 @@ On first startup, `items/gems.yml` is generated (using a `gems:` section) accord
 - With SX-Attribute installed: `SA测试宝石` (`sx_attribute`) is also generated
 - With MythicMobs installed: `MM技能测试宝石` (`mythicmobs_skill`) is also generated
 
-After installing a new soft dependency, delete `plugins/MosaicGem/items/gems.yml` and run `/mosaicgem reload` to regenerate it (existing files are never overwritten, so custom config is preserved). The full example below shows the file when every soft dependency is installed:
+**Generation rule**: if **any** `.yml` file already exists under `items/` (including subdirectories) — valid or not — no default item config files (`gems.yml` / `punchers.yml` / `removers.yml`) are generated at all, so custom config is never overwritten. After installing a new soft dependency, delete those default files and run `/mosaicgem reload` to regenerate them. The full example below shows the file when every soft dependency is installed:
 
 ```yaml
 gems:
@@ -313,6 +315,7 @@ gems:
     targetMaterial:              # allowed equipment ids; empty = all (AND with targetType)
       - IRON_SWORD
     repetitions: 5               # max times this gem can be socketed; empty = unlimited
+    remove-destroy-chance: 0     # removal destroy chance 0-100% (default 0 = never; independent of remover success rate)
     random:                      # random values rolled at creation; referenced in lore/attribute
       random_value: '10.00~20.00'
     buffType: 'sx_attribute'     # SX attribute: written to lore, read by SX-Attribute
@@ -376,6 +379,7 @@ gems:
 ```
 
 - `random` supports multiple random numbers in `min~max` format; decimals follow the configured precision and the value is fixed to the gem instance
+- `remove-destroy-chance`: probability (0-100, percent; default 0 = never destroyed; out-of-range values are clamped) that the gem is destroyed (lost) on removal. **Independent of the remover's success rate**: rolled only after the remover succeeds; on a hit the gem is not returned
 - `sx_attribute`: written to the equipment lore and merged by `sx-attribute-lore` (same attributes summed, total + bonus shown)
 - `vanilla_attribute`: applied directly as vanilla attribute modifiers (same attributes merge into one modifier; the item's native same-attribute modifiers are merged into the total); lore is **not** modified
 - `enchant`: adds/stacks enchantments (existing → original level + gem level; missing → created; multiple gems summed; native levels stored and restored on removal)
@@ -440,7 +444,9 @@ removers:
 .\gradlew.bat build
 ```
 
-Artifact: `build/libs/MosaicGem-1.0.0-SNAPSHOT.jar`
+Artifact: `build/libs/MosaicGem-1.0.2.jar`
+
+Released versions (with jars) are available on [GitHub Releases](https://github.com/W-IBARI/MosaicGem/releases).
 
 Development environment: JDK 25, Gradle 9.6.1 (project wrapper included), `dev.folia:folia-api:26.1.2.build.8-stable` (compile against the lowest 26.x stable to support all 26.x).
 

@@ -12,7 +12,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 
 - **装备打孔**：使用打孔器为装备添加孔位，成功率与双维度孔数上限可配置
 - **宝石镶嵌**：宝石携带随机数值，`sx_attribute` 宝石合并进装备属性面板由 SX-Attribute 读取生效；`vanilla_attribute` 宝石直接附加到装备的原版属性修饰符；`enchant` 宝石直接附加/叠加到装备的附魔；`mythicmobs_skill` 宝石按配置的触发器（默认挥动）发动 MythicMobs 技能
-- **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原
+- **宝石拆卸**：拆卸后宝石按原随机数值返还，装备属性面板自动还原；每颗宝石可独立配置 `remove-destroy-chance` 拆卸损毁概率（0-100%），与拆卸器成功率无关，拆卸成功后再独立判定，命中则宝石损毁不返还
 - **属性面板合并**：物品原有 `攻击力：13.90` + 宝石 +20 → `攻击力：33.90（+20）`，宝石独有的属性自动新增行
 - **三种交互方式**：铁砧合成、工作台/随身合成、拖拽工具到目标物品，均可独立开关
 - **完整反馈**：所有被拦截或失败的操作都会提示玩家，文案按语言拆分到独立的 `messages/` 目录语言文件中配置
@@ -110,6 +110,7 @@ Drops:
 - 宝石按原始随机数值原样返还（优先进背包，背包满则掉落脚边）
 - 装备属性面板自动还原：`sx_attribute` 原有属性行恢复原始数值、宝石新增行整行移除；`vanilla_attribute` 修饰符按剩余宝石重建，被合并的原生修饰符自动还原；`enchant` 附魔按剩余宝石重建，原生附魔等级自动还原
 - 失败时拆卸器消耗 1 个，装备与剩余宝石不受影响
+- **宝石损毁判定**：每颗宝石可配置 `remove-destroy-chance`（0-100，百分比，缺省 0）。该判定**与拆卸器成功率无关**——拆卸器判定成功后才独立进行；命中时宝石损毁（消失、不返还），装备正常还原，玩家收到 `remove-destroyed` 提示；未命中则正常返还
 
 ### 工具消耗与堆叠
 
@@ -262,6 +263,7 @@ sx-attribute-lore:
 | `socket-bufftype-unsupported` | 镶嵌：buffType 不受支持 |
 | `remove-empty` | 拆卸：没有已镶嵌宝石 |
 | `remove-fail` | 拆卸：成功率失败（工具消耗） |
+| `remove-destroyed` | 拆卸：拆卸成功但宝石损毁判定命中（宝石消失，不返还） |
 | `target-invalid` | 目标类型/材质不符合限制 |
 | `interaction-disabled` | 该交互方式被禁用 |
 | `tool-config-missing` | 工具在配置中不存在 |
@@ -295,7 +297,7 @@ removers:
 - 已安装 SX-Attribute：额外生成 `SA测试宝石`（`sx_attribute`）
 - 已安装 MythicMobs：额外生成 `MM技能测试宝石`（`mythicmobs_skill`）
 
-之后新安装软依赖时，删除 `plugins/MosaicGem/items/gems.yml` 并执行 `/mosaicgem reload` 即可重新生成（已有文件不会被覆盖，避免丢失自定义配置）。以下是所有软依赖齐全时的生成示例：
+**生成规则**：只要 `items/` 目录（含子目录）下已存在**任何** `.yml` 文件（无论内容是否合法），都不再生成任何默认物品配置文件（`gems.yml` / `punchers.yml` / `removers.yml`），避免覆盖自定义配置；之后新安装软依赖时，删除这些默认文件并执行 `/mosaicgem reload` 即可重新生成。以下是所有软依赖齐全时的生成示例：
 
 ```yaml
 gems:
@@ -311,6 +313,7 @@ gems:
     targetMaterial:
       - IRON_SWORD
     repetitions: 5
+    remove-destroy-chance: 0    # 拆卸损毁概率 0-100%（缺省 0 = 永不损毁；与拆卸器成功率无关）
     random:
       random_value: '10.00~20.00'
     buffType: 'sx_attribute'
@@ -374,6 +377,7 @@ gems:
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
+- `remove-destroy-chance`：拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（缺省 0 = 永不损毁；越界自动钳制）。**与拆卸器成功率无关**：拆卸器判定成功后仍需独立过此判定，命中则宝石不返还
 - `sx_attribute`：属性行写进装备 lore，参与 `sx-attribute-lore` 面板合并（同属性求和、显示总值与加成）
 - `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore
 - `enchant`：属性行直接附加/叠加到装备附魔（已存在则原等级 + 宝石等级，不存在则新建；多宝石同类附魔求和；原生附魔等级存物品数据，取下自动还原）
@@ -438,7 +442,9 @@ removers:
 .\gradlew.bat build
 ```
 
-构建产物：`build/libs/MosaicGem-1.0.0-SNAPSHOT.jar`
+构建产物：`build/libs/MosaicGem-1.0.2.jar`
+
+已发布版本可从 [GitHub Releases](https://github.com/W-IBARI/MosaicGem/releases) 直接下载 jar（含历史版本）。
 
 开发环境：JDK 25、Gradle 9.6.1（项目自带 Wrapper）、`dev.folia:folia-api:26.1.2.build.8-stable`（针对 26.x 最低 stable 编译以兼容全部 26.x）。
 
