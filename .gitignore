@@ -2,7 +2,7 @@
 .gradle/
 build/
 
-# 构建产物（仅忽略工作目录根下散落的插件 jar；releases/ 下的发布 jar 正常入库）
+# 构建产物（工作目录根下散落的插件 jar；发布 jar 走 GitHub Releases 资产，不入库）
 /MosaicGem-*.jar
 
 # 开发需求文档（本地保留，不入库）
