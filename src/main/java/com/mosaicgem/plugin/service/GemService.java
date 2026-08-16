@@ -221,6 +221,13 @@ public class GemService {
         attributeLoreService.update(result, gems);
         factory.applySocketLore(result, new SocketData(data.holes(), data.holeSources(), gems), configs.socketLore());
 
+        // 宝石自身损毁判定：与拆卸器成功率无关，拆卸成功后才独立判定；
+        // 命中则宝石消失（不返还），未命中正常返还。
+        GemDefinition gemDefinition = configs.getGem(removed.id());
+        if (gemDefinition != null && roll(gemDefinition.getRemoveDestroyChance())) {
+            return new OperationResult(result, null, true, configs.message("remove-destroyed"));
+        }
+
         ItemStack returnedGem = buildReturnedGem(removed);
         return new OperationResult(result, returnedGem, true, configs.message("remove-success"));
     }

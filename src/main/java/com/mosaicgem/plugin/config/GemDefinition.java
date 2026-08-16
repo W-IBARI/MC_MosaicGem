@@ -15,6 +15,11 @@ public class GemDefinition extends ItemDefinition {
     private final Map<String, String> random;
     private final String buffType;
     private final List<String> attribute;
+    /**
+     * 拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%；与拆卸器成功率无关，
+     * 拆卸器成功后仍需独立判定。配置缺省或非法值时钳制到 0~100（默认 0 = 永不损毁）。
+     */
+    private final int removeDestroyChance;
 
     public GemDefinition(String id, ConfigurationSection section) {
         super(id, section);
@@ -28,6 +33,15 @@ public class GemDefinition extends ItemDefinition {
         }
         this.buffType = section.getString("buffType", "sx_attribute");
         this.attribute = section.getStringList("attribute");
+        // 不填默认为 0（永不损毁），越界值钳制到 0~100
+        this.removeDestroyChance = clampChance(section.getInt("remove-destroy-chance", 0));
+    }
+
+    /**
+     * 将概率限制在 0~100（非法配置按 0 处理，不损毁）。
+     */
+    private static int clampChance(int value) {
+        return Math.max(0, Math.min(100, value));
     }
 
     public Integer getRepetitions() {
@@ -44,5 +58,9 @@ public class GemDefinition extends ItemDefinition {
 
     public List<String> getAttribute() {
         return attribute;
+    }
+
+    public int getRemoveDestroyChance() {
+        return removeDestroyChance;
     }
 }

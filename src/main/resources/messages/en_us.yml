@@ -11,6 +11,7 @@
 #   socket-bufftype-unsupported Socket: gem buffType is unsupported (only sx_attribute / vanilla_attribute / enchant)
 #   remove-empty                Remove: item has no socketed gems
 #   remove-fail                 Remove: success-rate check failed (tool consumed)
+#   remove-destroyed            Remove: remover check passed, but the gem's own destroy check hit (gem lost, not returned)
 #   target-invalid              Operation: target item type/material does not match tool limits
 #   interaction-disabled        Operation: this interaction method is disabled in config
 #   tool-config-missing         Drag: tool does not exist in config
@@ -40,6 +41,7 @@ messages:
   remove-success: '&aGem removed successfully; the gem was returned.'
   remove-fail: '&cRemoval failed; the remover was consumed!'
   remove-empty: '&cRemoval failed: this item has no socketed gems!'
+  remove-destroyed: '&cRemoval succeeded, but the gem was destroyed in the process!'
   target-invalid: '&cThis item cannot be used for this operation!'
   interaction-disabled: '&cThis interaction method is disabled!'
   tool-config-missing: '&cThis tool is not in the config; contact an administrator!'
