@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * 核心业务：打孔、镶嵌、拆卸。
@@ -172,6 +173,23 @@ public class GemService {
             long count = data.gems().stream().filter(gem -> gem.id().equals(definition.getId())).count();
             if (count >= definition.getRepetitions()) {
                 return fail(configs.message("socket-repeat-limit"), target, false);
+            }
+        }
+        // gemtype 标签全局上限校验：装备上同标签宝石数量达到 settings.gem-type-limit 上限则拦截
+        Map<String, Integer> limits = configs.gemTypeLimits();
+        if (definition.getGemType() != null && !definition.getGemType().isEmpty() && !limits.isEmpty()) {
+            Map<String, Long> labelCounts = data.gems().stream()
+                    .map(gem -> configs.getGem(gem.id()))
+                    .filter(def -> def != null && !def.getGemType().isEmpty())
+                    .flatMap(def -> def.getGemType().stream())
+                    .collect(Collectors.groupingBy(label -> label, Collectors.counting()));
+            for (String label : definition.getGemType()) {
+                Integer limit = limits.get(label);
+                if (limit != null && limit > 0 && labelCounts.getOrDefault(label, 0L) >= limit) {
+                    return fail(configs.message("socket-gemtype-limit")
+                            .replace("{label}", label)
+                            .replace("{limit}", String.valueOf(limit)), target, false);
+                }
             }
         }
 

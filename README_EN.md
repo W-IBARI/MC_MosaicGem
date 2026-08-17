@@ -54,6 +54,7 @@ A Minecraft server gem socketing plugin. It supports **equipment punching (addin
 - The target must already have sockets, and the socketed count must be below the socket limit
 - Gems roll random values at creation time from `random` and keep them for that instance; each gem in a bulk give is independent
 - The same gem can be socketed multiple times according to `repetitions` (unlimited if omitted)
+- Gems can set `gemtype` type tags (a string list, multiple allowed); combined with `settings.gem-type-limit` in `config.yml`, it limits how many gems of the same `gemtype` tag can be socketed on one item (e.g. `攻击: 2` = at most 2 gems tagged "攻击" per item). Tags without a configured limit, or gems without `gemtype`, are not limited
 - `buffType` supports `sx_attribute` (lore read by SX-Attribute), `vanilla_attribute` (vanilla attribute modifiers), `enchant` (add/stack enchantments) and `mythicmobs_skill` (cast MythicMobs skills on the configured trigger, swing by default); other types are blocked with a message
 - `sx_attribute` merging rules:
   - The item's existing attribute line and all gems of the same attribute are summed and shown as `total（+bonus）`, e.g. `攻击力：33.90（+20）`
@@ -150,6 +151,8 @@ Config files live in `plugins/MosaicGem/` and are generated on first startup; ed
 settings:
   language: zh_cn          # message language: zh_cn / en_us
   max-holes: 6             # global socket hard limit (sum of all sources)
+  gem-type-limit:          # global per-gemtype limit (key=tag name, value=max; 0/omitted = unlimited)
+    攻击: 2                # at most 2 gems tagged "攻击" per item
   interactions:
     anvil: true            # anvil crafting
     crafting: true         # workbench / 2x2 crafting
@@ -262,6 +265,7 @@ The language files also contain two name mapping sections:
 | `socket-no-hole` | Socketing: item has no sockets |
 | `socket-full` | Socketing: sockets are full |
 | `socket-repeat-limit` | Socketing: repeat-socket limit reached for this gem |
+| `socket-gemtype-limit` | Socketing: global per-gemtype limit reached (settings.gem-type-limit) |
 | `socket-bufftype-unsupported` | Socketing: buffType not supported |
 | `remove-empty` | Removal: no socketed gems |
 | `remove-fail` | Removal: success roll failed (tool consumed) |
@@ -315,6 +319,8 @@ gems:
     targetMaterial:              # allowed equipment ids; empty = all (AND with targetType)
       - IRON_SWORD
     repetitions: 5               # max times this gem can be socketed; empty = unlimited
+    gemtype:                     # type tags (multiple allowed); limit count via settings.gem-type-limit
+      - 攻击
     remove-destroy-chance: 0     # removal destroy chance 0-100% (default 0 = never; independent of remover success rate)
     random:                      # random values rolled at creation; referenced in lore/attribute
       random_value: '10.00~20.00'
@@ -379,6 +385,7 @@ gems:
 ```
 
 - `random` supports multiple random numbers in `min~max` format; decimals follow the configured precision and the value is fixed to the gem instance
+- `gemtype`: gem type tags (a string list, multiple allowed, e.g. `['攻击', '火属性']`). Combined with `settings.gem-type-limit` in `config.yml`, limits how many gems of the same tag can be socketed on one item; empty list (omitted) means the gem does not participate in type counting
 - `remove-destroy-chance`: probability (0-100, percent; default 0 = never destroyed; out-of-range values are clamped) that the gem is destroyed (lost) on removal. **Independent of the remover's success rate**: rolled only after the remover succeeds; on a hit the gem is not returned
 - `sx_attribute`: written to the equipment lore and merged by `sx-attribute-lore` (same attributes summed, total + bonus shown)
 - `vanilla_attribute`: applied directly as vanilla attribute modifiers (same attributes merge into one modifier; the item's native same-attribute modifiers are merged into the total); lore is **not** modified

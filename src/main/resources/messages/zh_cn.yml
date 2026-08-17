@@ -8,6 +8,7 @@
 #   socket-no-hole              镶嵌：物品还没有任何孔位（未打孔）
 #   socket-full                 镶嵌：物品孔位已满
 #   socket-repeat-limit         镶嵌：同一种宝石已达到可重复镶嵌次数上限
+#   socket-gemtype-limit        镶嵌：该物品上同 gemtype 标签的宝石已达到全局上限（settings.gem-type-limit）
 #   socket-bufftype-unsupported 镶嵌：宝石的 buffType 不受支持（当前仅支持 sx_attribute / vanilla_attribute / enchant）
 #   remove-empty                拆卸：物品上没有已镶嵌的宝石
 #   remove-fail                 拆卸：成功率判定失败（工具已消耗）
@@ -37,6 +38,7 @@ messages:
   socket-no-hole: '&c镶嵌失败：该物品还没有孔位，请先打孔！'
   socket-full: '&c镶嵌失败：该物品的孔位已满！'
   socket-repeat-limit: '&c该宝石已达到可重复镶嵌次数上限！'
+  socket-gemtype-limit: '&c镶嵌失败：该物品上“{label}”类型宝石已达到上限（{limit}颗），无法镶嵌！'
   socket-bufftype-unsupported: '&c镶嵌失败：该宝石的属性类型不受支持，无法镶嵌！'
   remove-success: '&a宝石拆卸成功，宝石已返还。'
   remove-fail: '&c拆卸失败，拆卸器已消耗！'

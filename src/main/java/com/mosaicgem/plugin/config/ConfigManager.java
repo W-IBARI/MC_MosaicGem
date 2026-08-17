@@ -39,6 +39,8 @@ public class ConfigManager {
     private final Map<String, GemDefinition> gems = new LinkedHashMap<>();
     private final Map<String, PuncherDefinition> punchers = new LinkedHashMap<>();
     private final Map<String, RemoverDefinition> removers = new LinkedHashMap<>();
+    /** gemtype 标签全局数量限制（key: 标签名, value: 上限）。 */
+    private Map<String, Integer> gemTypeLimits = new LinkedHashMap<>();
 
     public ConfigManager(MosaicGemPlugin plugin) {
         this.plugin = plugin;
@@ -54,6 +56,15 @@ public class ConfigManager {
         removers.clear();
 
         loadItemFiles();
+
+        // 解析 settings.gem-type-limit（gemtype 标签全局数量限制）
+        gemTypeLimits = new LinkedHashMap<>();
+        ConfigurationSection gemTypeLimitSection = config.getConfigurationSection("settings.gem-type-limit");
+        if (gemTypeLimitSection != null) {
+            for (String key : gemTypeLimitSection.getKeys(false)) {
+                gemTypeLimits.put(key, Math.max(0, gemTypeLimitSection.getInt(key)));
+            }
+        }
 
         int warnings = 0;
         for (GemDefinition gem : gems.values()) {
@@ -275,6 +286,13 @@ public class ConfigManager {
 
     public int maxHoles() {
         return Math.max(0, config.getInt("settings.max-holes", 6));
+    }
+
+    /**
+     * 获取 gemtype 标签全局数量限制（key: 标签名, value: 上限值；负数/缺省按 0 处理 = 不限制）。
+     */
+    public Map<String, Integer> gemTypeLimits() {
+        return gemTypeLimits;
     }
 
     public boolean isInteractionEnabled(String name) {

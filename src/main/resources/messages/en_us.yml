@@ -8,6 +8,7 @@
 #   socket-no-hole              Socket: item has no holes yet
 #   socket-full                 Socket: item holes are full
 #   socket-repeat-limit         Socket: this gem reached its repeat-socketing limit
+#   socket-gemtype-limit        Socket: this item reached the global limit for a gem type (settings.gem-type-limit)
 #   socket-bufftype-unsupported Socket: gem buffType is unsupported (only sx_attribute / vanilla_attribute / enchant)
 #   remove-empty                Remove: item has no socketed gems
 #   remove-fail                 Remove: success-rate check failed (tool consumed)
@@ -37,6 +38,7 @@ messages:
   socket-no-hole: '&cSocket failed: this item has no holes yet. Punch it first!'
   socket-full: '&cSocket failed: this item''s holes are full!'
   socket-repeat-limit: '&cThis gem has reached its repeat socketing limit!'
+  socket-gemtype-limit: '&cSocket failed: this item has reached the limit for gem type "{label}" ({limit})!'
   socket-bufftype-unsupported: '&cSocket failed: this gem''s buff type is not supported!'
   remove-success: '&aGem removed successfully; the gem was returned.'
   remove-fail: '&cRemoval failed; the remover was consumed!'

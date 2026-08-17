@@ -4,6 +4,11 @@ settings:
   language: zh_cn
   # 单个物品可拥有的最大孔数（全局硬上限，不论孔来自哪个打孔器，总和均不可超过）
   max-holes: 6
+  # gemtype 标签全局数量限制：key 为宝石配置里的 gemtype 标签名，value 为
+  # 一件装备上同一标签的宝石最多可镶嵌数量（0 或缺省 = 不限制）。
+  # 示例：'攻击: 2' 表示带"攻击"标签的宝石一件装备最多镶嵌 2 颗。
+  gem-type-limit:
+    攻击: 2
   # 交互方式开关
   interactions:
     # 铁砧合成

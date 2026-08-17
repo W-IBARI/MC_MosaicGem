@@ -20,6 +20,11 @@ public class GemDefinition extends ItemDefinition {
      * 拆卸器成功后仍需独立判定。配置缺省或非法值时钳制到 0~100（默认 0 = 永不损毁）。
      */
     private final int removeDestroyChance;
+    /**
+     * 宝石类型标签（gemtype），用于装备上的同类型宝石数量上限校验。
+     * 空列表表示该宝石没有标签（不参与类型计数）。
+     */
+    private final List<String> gemType;
 
     public GemDefinition(String id, ConfigurationSection section) {
         super(id, section);
@@ -35,6 +40,8 @@ public class GemDefinition extends ItemDefinition {
         this.attribute = section.getStringList("attribute");
         // 不填默认为 0（永不损毁），越界值钳制到 0~100
         this.removeDestroyChance = clampChance(section.getInt("remove-destroy-chance", 0));
+        // gemtype：不填则为空列表，不参与类型计数
+        this.gemType = section.getStringList("gemtype");
     }
 
     /**
@@ -62,5 +69,9 @@ public class GemDefinition extends ItemDefinition {
 
     public int getRemoveDestroyChance() {
         return removeDestroyChance;
+    }
+
+    public List<String> getGemType() {
+        return gemType;
     }
 }

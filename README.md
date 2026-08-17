@@ -54,6 +54,7 @@ Minecraft 服务器宝石镶嵌插件，支持**装备打孔、宝石镶嵌、�
 - 目标装备必须已有孔位，且已镶嵌数量未达到孔数上限
 - 宝石生成时，按照配置的值生成，同时支持随机数配置：按 `random` 配置随机取值并固定到该宝石实例；批量发放时每颗宝石随机值独立
 - 同一种宝石可按 `repetitions` 限制重复镶嵌次数（不填为无上限）
+- 宝石可配置 `gemtype` 类型标签（字符串列表，可多个），配合 `config.yml` 的 `settings.gem-type-limit` 全局限制：一件装备上同一 `gemtype` 标签的宝石数量不得超过上限（如 `攻击: 2` 表示带"攻击"标签的宝石一件装备最多 2 颗）；标签未配置上限或 `gemtype` 缺省时不限制
 - `buffType` 支持 `sx_attribute`（写入 lore 由 SX-Attribute 读取）、`vanilla_attribute`（附加原版属性修饰符）、`enchant`（附加/叠加附魔）与 `mythicmobs_skill`（按配置的触发器发动 MythicMobs 技能，默认挥动），其他类型会拦截镶嵌并提示
 - `sx_attribute` 属性面板合并规则：
   - 物品原有属性行与所有宝石同类数值求和，显示为 `总值（+加成）`，如 `攻击力：33.90（+20）`
@@ -148,6 +149,8 @@ Drops:
 settings:
   language: zh_cn          # 消息语言：zh_cn（简体中文）/ en_us（English）
   max-holes: 6            # 全局孔数硬上限（所有来源孔数之和）
+  gem-type-limit:         # gemtype 标签全局数量限制（key=标签名, value=上限；0/缺省=不限制）
+    攻击: 2               # 带"攻击"标签的宝石一件装备最多 2 颗
   interactions:
     anvil: true           # 铁砧合成
     crafting: true        # 工作台/随身合成
@@ -260,6 +263,7 @@ sx-attribute-lore:
 | `socket-no-hole` | 镶嵌：装备没有孔位 |
 | `socket-full` | 镶嵌：孔位已满 |
 | `socket-repeat-limit` | 镶嵌：达到重复镶嵌次数上限 |
+| `socket-gemtype-limit` | 镶嵌：同 gemtype 标签宝石达到全局上限（settings.gem-type-limit） |
 | `socket-bufftype-unsupported` | 镶嵌：buffType 不受支持 |
 | `remove-empty` | 拆卸：没有已镶嵌宝石 |
 | `remove-fail` | 拆卸：成功率失败（工具消耗） |
@@ -313,6 +317,8 @@ gems:
     targetMaterial:
       - IRON_SWORD
     repetitions: 5
+    gemtype:                  # 类型标签（可多个），配合 settings.gem-type-limit 限制数量
+      - 攻击
     remove-destroy-chance: 0    # 拆卸损毁概率 0-100%（缺省 0 = 永不损毁；与拆卸器成功率无关）
     random:
       random_value: '10.00~20.00'
@@ -377,6 +383,7 @@ gems:
 ```
 
 - `random` 支持多个随机数，格式 `最小值~最大值`，小数位数按配置自动保留；生成后数值固定到该宝石实例
+- `gemtype`：宝石类型标签（字符串列表，可多个，如 `['攻击', '火属性']`）。配合 `config.yml` 的 `settings.gem-type-limit` 限制一件装备上同一标签宝石的数量上限；不填则为空列表，不参与类型计数
 - `remove-destroy-chance`：拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（缺省 0 = 永不损毁；越界自动钳制）。**与拆卸器成功率无关**：拆卸器判定成功后仍需独立过此判定，命中则宝石不返还
 - `sx_attribute`：属性行写进装备 lore，参与 `sx-attribute-lore` 面板合并（同属性求和、显示总值与加成）
 - `vanilla_attribute`：属性行直接附加为原版属性修饰符（同属性多宝石合并为一个修饰符，物品原生同属性修饰符合并进总值），**不会**修改/覆盖装备 lore

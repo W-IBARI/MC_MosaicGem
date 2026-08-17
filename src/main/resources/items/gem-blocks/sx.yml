@@ -14,6 +14,10 @@
     targetMaterial:
       - IRON_SWORD
     repetitions: 5
+    # 宝石类型标签（可多个）：配合 config.yml 的 settings.gem-type-limit 限制
+    # 一件装备上同一标签宝石的数量；不填则不参与类型计数
+    gemtype:
+      - 攻击
     random:
       random_value: '10.00~20.00'
     # 拆卸时宝石损毁（消失）概率，0~100 对应 0%~100%（默认 0 = 不损毁）。
